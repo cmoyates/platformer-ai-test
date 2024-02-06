@@ -2,7 +2,7 @@ mod level;
 mod utils;
 
 use ::bevy::prelude::*;
-use bevy::window::PresentMode;
+use bevy::window::{PresentMode, PrimaryWindow};
 use level::{generate_level_polygons, Polygon};
 
 fn main() {
@@ -17,7 +17,10 @@ fn main() {
             }),
             ..default()
         }))
+        // Startup systems
         .add_systems(Startup, s_init)
+        // Update systems
+        .add_systems(Update, s_input)
         .add_systems(Update, s_render)
         .run();
 }
@@ -43,6 +46,18 @@ pub fn s_init(mut commands: Commands) {
     });
 
     commands.spawn(Camera2dBundle::default());
+}
+
+pub fn s_input(
+    mouse_buttons: Res<Input<MouseButton>>,
+    q_windows: Query<&Window, With<PrimaryWindow>>,
+) {
+    if mouse_buttons.just_pressed(MouseButton::Left) {
+        println!("Mouse button pressed");
+        if let Some(position) = q_windows.single().cursor_position() {
+            dbg!(position);
+        }
+    }
 }
 
 pub fn s_render(mut gizmos: Gizmos, level: Res<Level>) {

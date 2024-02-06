@@ -6,7 +6,7 @@ fn main() {
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
-                title: "Flee AI Test".to_string(),
+                title: "Platformer AI Test".to_string(),
                 present_mode: PresentMode::AutoVsync,
                 fit_canvas_to_parent: true,
                 ..default()

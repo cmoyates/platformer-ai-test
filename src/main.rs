@@ -2,7 +2,10 @@ mod level;
 mod utils;
 
 use ::bevy::prelude::*;
-use bevy::window::{PresentMode, PrimaryWindow};
+use bevy::{
+    app::AppExit,
+    window::{PresentMode, PrimaryWindow},
+};
 use level::{generate_level_polygons, Polygon};
 
 fn main() {
@@ -50,13 +53,20 @@ pub fn s_init(mut commands: Commands) {
 
 pub fn s_input(
     mouse_buttons: Res<Input<MouseButton>>,
-    q_windows: Query<&Window, With<PrimaryWindow>>,
+    q_windows: Query<&Window>,
+    keyboard_input: Res<Input<KeyCode>>,
+    mut exit: EventWriter<AppExit>,
 ) {
     if mouse_buttons.just_pressed(MouseButton::Left) {
         println!("Mouse button pressed");
         if let Some(position) = q_windows.single().cursor_position() {
             dbg!(position);
         }
+    }
+
+    // Escape to exit
+    if keyboard_input.just_pressed(KeyCode::Escape) {
+        exit.send(AppExit);
     }
 }
 

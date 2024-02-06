@@ -2,15 +2,18 @@ mod level;
 mod utils;
 
 use ::bevy::prelude::*;
-use bevy::{
-    app::AppExit,
-    window::{PresentMode, PrimaryWindow},
-};
+use bevy::{app::AppExit, window::PresentMode};
 use level::{generate_level_polygons, Polygon};
 
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
+        .insert_resource(InputDir { dir: Vec2::ZERO })
+        .insert_resource(GizmosVisible { visible: false })
+        .insert_resource(GoalPoint {
+            position: Vec2::new(0.0, 0.0),
+            enabled: false,
+        })
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Platformer AI Test".to_string(),
@@ -24,7 +27,8 @@ fn main() {
         .add_systems(Startup, s_init)
         // Update systems
         .add_systems(Update, s_input)
-        .add_systems(Update, s_render)
+        .add_systems(Update, s_move_goal_point.after(s_input))
+        .add_systems(Update, s_render.after(s_move_goal_point))
         .run();
 }
 
@@ -34,6 +38,22 @@ pub struct Level {
     pub grid_size: f32,
     pub size: Vec2,
     pub half_size: Vec2,
+}
+
+#[derive(Resource)]
+pub struct InputDir {
+    pub dir: Vec2,
+}
+
+#[derive(Resource)]
+pub struct GizmosVisible {
+    pub visible: bool,
+}
+
+#[derive(Resource)]
+pub struct GoalPoint {
+    pub position: Vec2,
+    pub enabled: bool,
 }
 
 pub fn s_init(mut commands: Commands) {
@@ -52,25 +72,62 @@ pub fn s_init(mut commands: Commands) {
 }
 
 pub fn s_input(
-    mouse_buttons: Res<Input<MouseButton>>,
-    q_windows: Query<&Window>,
     keyboard_input: Res<Input<KeyCode>>,
     mut exit: EventWriter<AppExit>,
+    mut input_dir: ResMut<InputDir>,
+    mut gizmos_visible: ResMut<GizmosVisible>,
+    mut goal_point: ResMut<GoalPoint>,
 ) {
-    if mouse_buttons.just_pressed(MouseButton::Left) {
-        println!("Mouse button pressed");
-        if let Some(position) = q_windows.single().cursor_position() {
-            dbg!(position);
-        }
-    }
-
     // Escape to exit
     if keyboard_input.just_pressed(KeyCode::Escape) {
         exit.send(AppExit);
     }
+
+    // R to reset
+    if keyboard_input.just_pressed(KeyCode::R) {
+        println!("Reset");
+    }
+
+    // Arrow keys to move goal point
+    {
+        let mut direction = Vec2::ZERO;
+
+        if keyboard_input.pressed(KeyCode::Up) {
+            direction.y += 1.0;
+        }
+        if keyboard_input.pressed(KeyCode::Down) {
+            direction.y -= 1.0;
+        }
+        if keyboard_input.pressed(KeyCode::Left) {
+            direction.x -= 1.0;
+        }
+        if keyboard_input.pressed(KeyCode::Right) {
+            direction.x += 1.0;
+        }
+
+        // Normalize direction
+        direction = direction.normalize_or_zero();
+
+        // Set direction resource
+        input_dir.dir = direction;
+    }
+
+    // G to toggle gizmos
+    if keyboard_input.just_pressed(KeyCode::G) {
+        gizmos_visible.visible = !gizmos_visible.visible;
+    }
+
+    // Space to toggle goal point
+    if keyboard_input.just_pressed(KeyCode::Space) {
+        goal_point.enabled = !goal_point.enabled;
+    }
 }
 
-pub fn s_render(mut gizmos: Gizmos, level: Res<Level>) {
+pub fn s_move_goal_point(input_dir: Res<InputDir>, mut goal_point: ResMut<GoalPoint>) {
+    goal_point.position += input_dir.dir * 4.0;
+}
+
+pub fn s_render(mut gizmos: Gizmos, level: Res<Level>, goal_point: Res<GoalPoint>) {
     // Draw the level polygons
     for polygon in &level.polygons {
         gizmos.linestrip_2d(
@@ -78,4 +135,11 @@ pub fn s_render(mut gizmos: Gizmos, level: Res<Level>) {
             polygon.color,
         );
     }
+
+    // Draw the goal point
+    gizmos.circle_2d(
+        goal_point.position,
+        5.0,
+        Color::GREEN.with_a(if goal_point.enabled { 1.0 } else { 0.1 }),
+    );
 }

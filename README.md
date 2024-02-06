@@ -6,8 +6,12 @@ The behavior is supposed to resemble that of the lizards from [Rain World](https
 
 ## TODO
 
-- [ ] Figure out how to do platformer pathfinding
-- [ ] Set up a way to set goal points by clicking the screen
+- [ ] Implement [platformer pathfinding](https://youtu.be/kNI2I8kzpnE)
+  - [ ] Extend it to support wall climbing
+- [ ] Set up a way to set goal points
+  - [ ] Starts at (0,0), move with arrow keys
+  - [ ] Toggle goal enabled with space
+- [ ] Add button to reset the AI (R)
 - [ ] Add procedural animation
   - [ ] Multiple body segments
   - [ ] [IK](https://youtu.be/wgpgNLEEpeY)

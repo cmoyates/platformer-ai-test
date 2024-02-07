@@ -6,8 +6,10 @@ The behavior is supposed to resemble that of the lizards from [Rain World](https
 
 ## TODO
 
-- [ ] Implement [platformer pathfinding](https://youtu.be/kNI2I8kzpnE)
-  - [ ] Extend it to support wall climbing
+- [ ] Implement [platformer pathfinding](https://www.youtube.com/watch?v=kNI2I8kzpnE&t=123s)
+  - [x] Contruct node graph
+  - [ ] Jumpable stuff
+  - [ ] A\*
 - [ ] Set up a way to set goal points
   - [ ] Starts at (0,0), move with arrow keys
   - [ ] Toggle goal enabled with space

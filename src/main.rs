@@ -1,9 +1,11 @@
 mod level;
+mod pathfinding;
 mod utils;
 
 use ::bevy::prelude::*;
 use bevy::{app::AppExit, window::PresentMode};
 use level::{generate_level_polygons, Polygon};
+use pathfinding::{init_pathfinding, Pathfinding, PathfindingPlugin};
 
 fn main() {
     App::new()
@@ -23,6 +25,7 @@ fn main() {
             }),
             ..default()
         }))
+        .add_plugins(PathfindingPlugin)
         // Startup systems
         .add_systems(Startup, s_init)
         // Update systems
@@ -56,17 +59,21 @@ pub struct GoalPoint {
     pub enabled: bool,
 }
 
-pub fn s_init(mut commands: Commands) {
+pub fn s_init(mut commands: Commands, pathfinding: ResMut<Pathfinding>) {
     let grid_size = 32.0;
 
     let (level_polygons, size, half_size) = generate_level_polygons(grid_size);
 
-    commands.insert_resource(Level {
+    let level = Level {
         polygons: level_polygons,
         grid_size,
         size,
         half_size,
-    });
+    };
+
+    init_pathfinding(&level, pathfinding);
+
+    commands.insert_resource(level);
 
     commands.spawn(Camera2dBundle::default());
 }
@@ -127,7 +134,13 @@ pub fn s_move_goal_point(input_dir: Res<InputDir>, mut goal_point: ResMut<GoalPo
     goal_point.position += input_dir.dir * 4.0;
 }
 
-pub fn s_render(mut gizmos: Gizmos, level: Res<Level>, goal_point: Res<GoalPoint>) {
+pub fn s_render(
+    mut gizmos: Gizmos,
+    level: Res<Level>,
+    goal_point: Res<GoalPoint>,
+    pathfinding: Res<Pathfinding>,
+    gizmos_visible: Res<GizmosVisible>,
+) {
     // Draw the level polygons
     for polygon in &level.polygons {
         gizmos.linestrip_2d(
@@ -136,10 +149,17 @@ pub fn s_render(mut gizmos: Gizmos, level: Res<Level>, goal_point: Res<GoalPoint
         );
     }
 
+    if gizmos_visible.visible {
+        // Draw the pathfinding nodes
+        for node in &pathfinding.nodes {
+            gizmos.circle_2d(node.position, 2.5, Color::WHITE);
+        }
+    }
+
     // Draw the goal point
     gizmos.circle_2d(
         goal_point.position,
-        5.0,
+        7.5,
         Color::GREEN.with_a(if goal_point.enabled { 1.0 } else { 0.1 }),
     );
 }

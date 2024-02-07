@@ -5,8 +5,8 @@ use crate::utils::line_intersect;
 
 pub struct Polygon {
     pub points: Vec<Vec2>,
-    pub collision_side: f32,
     pub color: Color,
+    pub is_container: bool,
 }
 
 const LEVEL_DATA: &'static [u8] = include_bytes!("../assets/level.json");
@@ -562,6 +562,10 @@ pub fn generate_level_polygons(grid_size: f32) -> (Vec<Polygon>, Vec2, Vec2) {
             collision_side *= -1.0;
         }
 
+        if collision_side == -1.0 {
+            polygon_lines.reverse();
+        }
+
         let color = if is_container {
             container_color
         } else {
@@ -575,8 +579,8 @@ pub fn generate_level_polygons(grid_size: f32) -> (Vec<Polygon>, Vec2, Vec2) {
         // Add the polygon to the list of polygons
         polygons.push(Polygon {
             points: polygon_lines,
-            collision_side,
             color,
+            is_container,
         });
     }
 

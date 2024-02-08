@@ -109,13 +109,13 @@ pub fn s_input(
     mut exit: EventWriter<AppExit>,
     mut input_dir: ResMut<InputDir>,
     mut gizmos_visible: ResMut<GizmosVisible>,
-    // mut goal_point: ResMut<GoalPoint>,
     mut platformer_ai_query: Query<(&mut Transform, &mut Physics, &mut PlatformerAI)>,
     mouse_buttons: Res<Input<MouseButton>>,
     q_windows: Query<&Window, With<PrimaryWindow>>,
     mut pathfinding: ResMut<Pathfinding>,
 ) {
-    // Escape to exit
+    // Escape to exit (if not WASM)
+    #[cfg(not(target_arch = "wasm32"))]
     if keyboard_input.just_pressed(KeyCode::Escape) {
         exit.send(AppExit);
     }
@@ -229,13 +229,11 @@ pub fn s_render(
     platformer_ai_query: Query<(&Transform, &Physics, &PlatformerAI)>,
 ) {
     // Draw the level polygons
-    if !gizmos_visible.visible {
-        for polygon in &level.polygons {
-            gizmos.linestrip_2d(
-                polygon.points.iter().cloned().collect::<Vec<Vec2>>(),
-                polygon.color,
-            );
-        }
+    for polygon in &level.polygons {
+        gizmos.linestrip_2d(
+            polygon.points.iter().cloned().collect::<Vec<Vec2>>(),
+            polygon.color,
+        );
     }
 
     if gizmos_visible.visible {
@@ -245,13 +243,13 @@ pub fn s_render(
         }
 
         // Draw the pathfinding connections
-        for node in &pathfinding.nodes {
-            for connection_id in &node.connections {
-                let connected_node = &pathfinding.nodes[*connection_id];
+        // for node in &pathfinding.nodes {
+        //     for connection_id in &node.connections {
+        //         let connected_node = &pathfinding.nodes[*connection_id];
 
-                gizmos.line_2d(node.position, connected_node.position, Color::RED);
-            }
-        }
+        //         gizmos.line_2d(node.position, connected_node.position, Color::RED);
+        //     }
+        // }
 
         // Draw the pathfinding closest node
         if let Some(goal_node) = &pathfinding.goal_graph_node {

@@ -103,8 +103,6 @@ pub fn find_path(pathfinding: &Pathfinding, start_position: Vec2) -> Option<Vec<
         // Get the node with the lowest f-cost
         let current_node = open_list.pop().unwrap();
 
-        dbg!(current_node.id);
-
         // If the current node is the goal, reconstruct the path
         if current_node.is_goal {
             let mut path = vec![];

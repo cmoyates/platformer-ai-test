@@ -14,9 +14,12 @@ The behavior is supposed to resemble that of the lizards from [Rain World](https
     - [x] Connect the nodes
     - [x] Remove duplicate nodes
     - [x] Fix the order
-    - [ ] Jumpable stuff
+    - [ ] Jumping connections
+    - [ ] Dropping connections
 
-  - [ ] A\*
+  - [x] A\*
+
+- [ ] Implement AI path following
 
 - [x] Set up a way to set goal points
 

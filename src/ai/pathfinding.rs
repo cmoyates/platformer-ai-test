@@ -1,22 +1,25 @@
-use std::path;
-
 use bevy::{
     app::{App, Plugin},
     ecs::system::{ResMut, Resource},
     math::Vec2,
 };
 
-use crate::{level::PolygonLine, Level};
+use crate::Level;
 
 pub struct PathfindingPlugin;
 
 impl Plugin for PathfindingPlugin {
     fn build(&self, app: &mut App) {
-        app.insert_resource(Pathfinding { nodes: Vec::new() });
+        app.insert_resource(Pathfinding {
+            nodes: Vec::new(),
+            goal_graph_node: None,
+            goal_position: Vec2::ZERO,
+            active: false,
+        });
     }
 }
 
-pub fn init_pathfinding(level: &Level, mut pathfinding: ResMut<Pathfinding>) {
+pub fn init_pathfinding_graph(level: &Level, mut pathfinding: ResMut<Pathfinding>) {
     let mut outer_container_seen = false;
 
     // Place nodes
@@ -44,15 +47,10 @@ pub fn init_pathfinding(level: &Level, mut pathfinding: ResMut<Pathfinding>) {
             start_to_end = start_to_end.normalize();
 
             if start_to_end.dot(Vec2::X) > -0.1 {
-                let polygon_line = PolygonLine {
-                    polygon_index: polygon_index,
-                    line_index: line_index - 1,
-                };
-
                 for j in 0..(nodes_on_line_count as i32) {
                     let node_pos = start + start_to_end * (j as f32 * dist_between_nodes_on_line);
 
-                    let mut new_node = PathfindingNode {
+                    let mut new_node = PathfindingGraphNode {
                         id: pathfinding.nodes.len(),
                         position: node_pos,
                         polygon_index: polygon_index,
@@ -66,7 +64,7 @@ pub fn init_pathfinding(level: &Level, mut pathfinding: ResMut<Pathfinding>) {
 
                     pathfinding.nodes.push(new_node);
                 }
-                let new_node = PathfindingNode {
+                let new_node = PathfindingGraphNode {
                     id: pathfinding.nodes.len(),
                     position: end,
                     polygon_index: polygon_index,
@@ -154,7 +152,7 @@ pub fn init_pathfinding(level: &Level, mut pathfinding: ResMut<Pathfinding>) {
 }
 
 #[derive(Debug, Clone)]
-pub struct PathfindingNode {
+pub struct PathfindingGraphNode {
     pub id: usize,
     pub position: Vec2,
     pub polygon_index: usize,
@@ -164,5 +162,8 @@ pub struct PathfindingNode {
 
 #[derive(Resource)]
 pub struct Pathfinding {
-    pub nodes: Vec<PathfindingNode>,
+    pub nodes: Vec<PathfindingGraphNode>,
+    pub goal_graph_node: Option<PathfindingGraphNode>,
+    pub goal_position: Vec2,
+    pub active: bool,
 }

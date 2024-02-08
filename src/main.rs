@@ -1,30 +1,30 @@
 mod ai;
 mod collisions;
 mod level;
-mod pathfinding;
 mod utils;
 
 use ::bevy::prelude::*;
-use ai::platformer::{PlatformerAI, PlatformerAIPlugin};
+use ai::{
+    pathfinding,
+    platformer_ai::{PlatformerAI, PlatformerAIPlugin},
+};
 use bevy::{
     app::AppExit,
-    input::mouse,
-    render::view::window,
     window::{PresentMode, PrimaryWindow},
 };
 use collisions::CollisionPlugin;
 use level::{generate_level_polygons, Polygon};
-use pathfinding::{init_pathfinding, Pathfinding, PathfindingPlugin};
+use pathfinding::{init_pathfinding_graph, Pathfinding, PathfindingPlugin};
 
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
         .insert_resource(InputDir { dir: Vec2::ZERO })
         .insert_resource(GizmosVisible { visible: false })
-        .insert_resource(GoalPoint {
-            position: Vec2::new(0.0, 0.0),
-            enabled: false,
-        })
+        // .insert_resource(GoalPoint {
+        //     position: Vec2::new(0.0, 0.0),
+        //     enabled: false,
+        // })
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Platformer AI Test".to_string(),
@@ -64,12 +64,6 @@ pub struct GizmosVisible {
     pub visible: bool,
 }
 
-#[derive(Resource)]
-pub struct GoalPoint {
-    pub position: Vec2,
-    pub enabled: bool,
-}
-
 #[derive(Component)]
 pub struct Physics {
     pub prev_position: Vec2,
@@ -91,7 +85,7 @@ pub fn s_init(mut commands: Commands, pathfinding: ResMut<Pathfinding>) {
         half_size,
     };
 
-    init_pathfinding(&level, pathfinding);
+    init_pathfinding_graph(&level, pathfinding);
 
     commands.insert_resource(level);
 
@@ -115,11 +109,11 @@ pub fn s_input(
     mut exit: EventWriter<AppExit>,
     mut input_dir: ResMut<InputDir>,
     mut gizmos_visible: ResMut<GizmosVisible>,
-    mut goal_point: ResMut<GoalPoint>,
+    // mut goal_point: ResMut<GoalPoint>,
     mut platformer_ai_query: Query<(&mut Transform, &mut Physics, &mut PlatformerAI)>,
     mouse_buttons: Res<Input<MouseButton>>,
     q_windows: Query<&Window, With<PrimaryWindow>>,
-    pathfinding: Res<Pathfinding>,
+    mut pathfinding: ResMut<Pathfinding>,
 ) {
     // Escape to exit
     if keyboard_input.just_pressed(KeyCode::Escape) {
@@ -167,7 +161,24 @@ pub fn s_input(
 
     // Space to toggle goal point
     if keyboard_input.just_pressed(KeyCode::Space) {
-        goal_point.enabled = !goal_point.enabled;
+        pathfinding.active = !pathfinding.active;
+        if pathfinding.active {
+            // Set the closest node to the node closest to the goal point
+            let mut closest_distance = f32::MAX;
+
+            for node_index in 0..pathfinding.nodes.len() {
+                let node = &pathfinding.nodes[node_index];
+
+                let distance = (pathfinding.goal_position - node.position).length_squared();
+
+                if distance < closest_distance {
+                    closest_distance = distance;
+                    pathfinding.goal_graph_node = Some(node.clone());
+                }
+            }
+        } else {
+            pathfinding.goal_graph_node = None;
+        }
     }
 
     // Print some debug info if you click on a pathfinding node
@@ -191,25 +202,41 @@ pub fn s_input(
     }
 }
 
-pub fn s_move_goal_point(input_dir: Res<InputDir>, mut goal_point: ResMut<GoalPoint>) {
-    goal_point.position += input_dir.dir * 4.0;
+pub fn s_move_goal_point(input_dir: Res<InputDir>, mut pathfinding: ResMut<Pathfinding>) {
+    pathfinding.goal_position += input_dir.dir * 4.0;
+
+    if pathfinding.active {
+        // Set the closest node to the node closest to the goal point
+        let mut closest_distance = f32::MAX;
+        for node_index in 0..pathfinding.nodes.len() {
+            let node = &pathfinding.nodes[node_index];
+
+            let distance = (pathfinding.goal_position - node.position).length_squared();
+
+            if distance < closest_distance {
+                closest_distance = distance;
+                pathfinding.goal_graph_node = Some(node.clone());
+            }
+        }
+    }
 }
 
 pub fn s_render(
     mut gizmos: Gizmos,
     level: Res<Level>,
-    goal_point: Res<GoalPoint>,
     pathfinding: Res<Pathfinding>,
     gizmos_visible: Res<GizmosVisible>,
     platformer_ai_query: Query<(&Transform, &Physics, &PlatformerAI)>,
 ) {
     // Draw the level polygons
-    // for polygon in &level.polygons {
-    //     gizmos.linestrip_2d(
-    //         polygon.points.iter().cloned().collect::<Vec<Vec2>>(),
-    //         polygon.color,
-    //     );
-    // }
+    if !gizmos_visible.visible {
+        for polygon in &level.polygons {
+            gizmos.linestrip_2d(
+                polygon.points.iter().cloned().collect::<Vec<Vec2>>(),
+                polygon.color,
+            );
+        }
+    }
 
     if gizmos_visible.visible {
         // Draw the pathfinding nodes
@@ -225,13 +252,22 @@ pub fn s_render(
                 gizmos.line_2d(node.position, connected_node.position, Color::RED);
             }
         }
+
+        // Draw the pathfinding closest node
+        if let Some(goal_node) = &pathfinding.goal_graph_node {
+            gizmos.circle_2d(goal_node.position, 5.0, Color::GREEN);
+        }
     }
 
     // Draw the goal point
     gizmos.circle_2d(
-        goal_point.position,
+        pathfinding.goal_position,
         7.5,
-        Color::GREEN.with_a(if goal_point.enabled { 1.0 } else { 0.1 }),
+        if pathfinding.active {
+            Color::GREEN
+        } else {
+            Color::GRAY.with_a(0.2)
+        },
     );
 
     // Draw the platformer AI

@@ -58,7 +58,6 @@ pub fn init_pathfinding(level: &Level, mut pathfinding: ResMut<Pathfinding>) {
                         polygon_index: polygon_index,
                         line_index: line_index - 1,
                         connections: Vec::new(),
-                        on_lines: vec![polygon_line.clone()],
                     };
 
                     if j > 0 {
@@ -73,7 +72,6 @@ pub fn init_pathfinding(level: &Level, mut pathfinding: ResMut<Pathfinding>) {
                     polygon_index: polygon_index,
                     line_index: line_index - 1,
                     connections: vec![pathfinding.nodes.len() - 1],
-                    on_lines: vec![polygon_line],
                 };
 
                 pathfinding.nodes.push(new_node);
@@ -104,10 +102,6 @@ pub fn init_pathfinding(level: &Level, mut pathfinding: ResMut<Pathfinding>) {
                 if (pathfinding.nodes[i].position - pathfinding.nodes[j].position).length_squared()
                     < 1.0
                 {
-                    // Append the lines to the first node
-                    let mut j_on_lines = pathfinding.nodes[j].on_lines.clone();
-                    pathfinding.nodes[i].on_lines.append(&mut j_on_lines);
-
                     // Append the connections to the first node
                     let mut j_connections = pathfinding.nodes[j].connections.clone();
                     pathfinding.nodes[i].connections.append(&mut j_connections);
@@ -166,7 +160,6 @@ pub struct PathfindingNode {
     pub polygon_index: usize,
     pub line_index: usize,
     pub connections: Vec<usize>,
-    pub on_lines: Vec<PolygonLine>,
 }
 
 #[derive(Resource)]

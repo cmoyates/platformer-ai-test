@@ -30,3 +30,10 @@ pub fn line_intersect(
 pub fn cross_product(a: Vec2, b: Vec2) -> f32 {
     a.x * b.y - a.y * b.x
 }
+
+pub fn side_of_line_detection(line_start: Vec2, line_end: Vec2, point: Vec2) -> f32 {
+    let determinant = (line_end.x - line_start.x) * (point.y - line_start.y)
+        - (line_end.y - line_start.y) * (point.x - line_start.x);
+
+    return determinant.signum();
+}

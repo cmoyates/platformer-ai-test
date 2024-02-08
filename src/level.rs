@@ -618,3 +618,9 @@ fn point_in_polygon(polygon_lines: &Vec<Vec2>, point: Vec2) -> bool {
 
     return intersect_counter % 2 == 1;
 }
+
+#[derive(Debug, Clone, PartialEq)]
+pub struct PolygonLine {
+    pub polygon_index: usize,
+    pub line_index: usize,
+}

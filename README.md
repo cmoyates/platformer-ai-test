@@ -7,13 +7,19 @@ The behavior is supposed to resemble that of the lizards from [Rain World](https
 ## TODO
 
 - [ ] Implement [platformer pathfinding](https://www.youtube.com/watch?v=kNI2I8kzpnE&t=123s)
-  - [x] Contruct node graph
-  - [ ] Jumpable stuff
+
+  - [ ] Contruct node graph
+    - [x] Place nodes in all valid positions
+    - [x] Connect the nodes
+    - [x] Remove duplicate nodes
+    - [x] Fix the order
+    - [ ] Jumpable stuff
   - [ ] A\*
-- [ ] Set up a way to set goal points
-  - [ ] Starts at (0,0), move with arrow keys
-  - [ ] Toggle goal enabled with space
-- [ ] Add button to reset the AI (R)
+
+- [x] Set up a way to set goal points
+  - [x] Starts at (0,0), move with arrow keys
+  - [x] Toggle goal enabled with space
+- [x] Add button to reset the AI (R)
 - [ ] Add procedural animation
   - [ ] Multiple body segments
   - [ ] [IK](https://youtu.be/wgpgNLEEpeY)

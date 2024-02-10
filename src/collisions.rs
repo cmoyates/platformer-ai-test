@@ -81,18 +81,18 @@ pub fn s_collision(
                         // Add the normal dir to the players new normal
                         new_normal -= normal_dir;
 
-                        // // If the player is on a wall
-                        // if normal_dir.x.abs() >= 0.8 {
-                        //     player_data.walled_timer = MAX_WALLED_TIMER * normal_dir.x as i32;
-                        //     player_data.has_wall_jumped = false;
-                        // }
+                        // If the player is on a wall
+                        if normal_dir.x.abs() >= 0.8 {
+                            physics.walled = normal_dir.x.signum() as i8;
+                            physics.has_wall_jumped = false;
+                        }
 
-                        // // If the player is on the ground
-                        // if normal_dir.y > 0.01 {
-                        //     player_data.grounded_timer = MAX_GROUNDED_TIMER;
-                        //     player_data.walled_timer = 0;
-                        //     player_data.has_wall_jumped = false;
-                        // }
+                        // If the player is on the ground
+                        if normal_dir.y > 0.01 {
+                            physics.grounded = true;
+                            physics.walled = 0;
+                            physics.has_wall_jumped = false;
+                        }
                     }
                 }
 

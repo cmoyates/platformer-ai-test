@@ -4,7 +4,7 @@ use bevy::math::Vec2;
 
 use super::pathfinding::{Pathfinding, PathfindingGraphNode};
 
-pub fn find_path(pathfinding: &Pathfinding, start_position: Vec2) -> Option<Vec<Vec2>> {
+pub fn find_path(pathfinding: &Pathfinding, start_position: Vec2) -> Option<Vec<(Vec2, usize)>> {
     if pathfinding.goal_graph_node.is_none() {
         return None;
     }
@@ -31,12 +31,12 @@ pub fn find_path(pathfinding: &Pathfinding, start_position: Vec2) -> Option<Vec<
 
         // If the current node is the goal, reconstruct the path
         if current_node.is_goal {
-            let mut path = vec![];
+            let mut path: Vec<(Vec2, usize)> = vec![];
 
             let mut current_node = current_node;
             while let Some(parent_id) = current_node.parent {
                 let parent_node = closed_list.iter().find(|n| n.id == parent_id).unwrap();
-                path.push(parent_node.position);
+                path.push((parent_node.position, parent_id));
                 current_node = parent_node.clone();
             }
 
@@ -83,8 +83,9 @@ fn get_start_node(pathfinding: &Pathfinding, start_position: Vec2) -> AStarNode 
         id: 0,
         position: Vec2::ZERO,
         polygon_index: 0,
-        line_index: 0,
-        connections: vec![],
+        line_indicies: vec![],
+        walkable_connections: vec![],
+        jumpable_connections: vec![],
     };
     let mut start_graph_node_index = f32::MAX;
 
@@ -118,10 +119,16 @@ pub struct AStarNode {
 
 impl AStarNode {
     pub fn new(graph_node: &PathfindingGraphNode) -> AStarNode {
+        let connections = [
+            graph_node.walkable_connections.as_slice(),
+            graph_node.jumpable_connections.as_slice(),
+        ]
+        .concat();
+
         AStarNode {
             position: graph_node.position,
             id: graph_node.id,
-            connections: graph_node.connections.clone(),
+            connections,
             g_cost: 0.0,
             h_cost: 0.0,
             parent: None,

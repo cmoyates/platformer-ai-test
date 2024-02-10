@@ -15,7 +15,6 @@ The behavior is supposed to resemble that of the lizards from [Rain World](https
     - [x] Remove duplicate nodes
     - [x] Fix the order
     - [ ] Jumping connections
-    - [ ] Dropping connections
 
   - [x] A\*
 

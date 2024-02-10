@@ -16,6 +16,8 @@ use collisions::{s_collision, CollisionPlugin};
 use level::{generate_level_polygons, Polygon};
 use pathfinding::{init_pathfinding_graph, Pathfinding, PathfindingPlugin};
 
+pub const GRAVITY_STRENGTH: f32 = 0.5;
+
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.0, 0.0, 0.0)))
@@ -71,6 +73,9 @@ pub struct Physics {
     pub acceleration: Vec2,
     pub radius: f32,
     pub normal: Vec2,
+    pub grounded: bool,
+    pub walled: i8,
+    has_wall_jumped: bool,
 }
 
 pub fn s_init(mut commands: Commands, pathfinding: ResMut<Pathfinding>) {
@@ -99,6 +104,9 @@ pub fn s_init(mut commands: Commands, pathfinding: ResMut<Pathfinding>) {
             acceleration: Vec2::ZERO,
             radius: 8.0,
             normal: Vec2::ZERO,
+            grounded: false,
+            walled: 0,
+            has_wall_jumped: false,
         },
         PlatformerAI {},
     ));
@@ -243,13 +251,17 @@ pub fn s_render(
         }
 
         // Draw the pathfinding connections
-        // for node in &pathfinding.nodes {
-        //     for connection_id in &node.connections {
-        //         let connected_node = &pathfinding.nodes[*connection_id];
+        for node in &pathfinding.nodes {
+            for connection_id in &node.jumpable_connections {
+                let connected_node = &pathfinding.nodes[*connection_id];
 
-        //         gizmos.line_2d(node.position, connected_node.position, Color::RED);
-        //     }
-        // }
+                gizmos.line_2d(
+                    node.position,
+                    connected_node.position,
+                    Color::WHITE.with_a(0.01),
+                );
+            }
+        }
 
         // Draw the pathfinding closest node
         if let Some(goal_node) = &pathfinding.goal_graph_node {

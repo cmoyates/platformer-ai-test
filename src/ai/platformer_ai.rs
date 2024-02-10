@@ -11,7 +11,7 @@ use bevy::{
     transform::components::Transform,
 };
 
-use crate::{s_move_goal_point, GizmosVisible, Physics};
+use crate::{s_move_goal_point, GizmosVisible, Physics, GRAVITY_STRENGTH};
 
 use super::{a_star::find_path, pathfinding::Pathfinding};
 
@@ -20,6 +20,8 @@ const WANDER_MAX_SPEED: f32 = 3.0;
 // const ATTACK_MAX_SPEED: f32 = 7.0;
 
 // const STEERING_SCALE: f32 = 0.1;
+
+pub const PLATFORMER_AI_JUMP_FORCE: f32 = 9.0;
 
 pub const ACCELERATION_SCALERS: (f32, f32) = (0.2, 0.4);
 
@@ -41,7 +43,7 @@ pub fn s_platformer_ai_movement(
     mut gizmos: Gizmos,
 ) {
     for (mut transform, mut physics, mut platformer_ai) in platformer_ai_query.iter_mut() {
-        let move_dir = get_move_dir(
+        let (move_dir, jump_velocity) = get_move_inputs(
             pathfinding.as_ref(),
             transform.translation.xy(),
             &mut gizmos,
@@ -63,33 +65,70 @@ pub fn s_platformer_ai_movement(
 
         apply_gravity_toward_normal(&mut physics, falling /*, player_move_off_wall*/);
 
+        // Jumping
+        {
+            // If the player is trying to jump
+            if jump_velocity.length_squared() > 0.0 {
+                // If on the ground
+                if physics.grounded {
+                    // Jump
+                    physics.velocity = jump_velocity;
+                    physics.grounded = false;
+                    println!("Jump!!!");
+                }
+                // If on a wall
+                else if physics.walled != 0 {
+                    // Wall jump
+                    physics.velocity = jump_velocity;
+                    physics.walled = 0;
+                    physics.has_wall_jumped = true;
+                    println!("Wall Jump!!!");
+                }
+            }
+        }
+
         update_physics_and_transform(&mut physics, &mut transform);
     }
 }
 
-fn get_move_dir(
+fn get_move_inputs(
     pathfinding: &Pathfinding,
     current_position: Vec2,
     gizmos: &mut Gizmos,
     gizmos_visible: bool,
-) -> Vec2 {
+) -> (Vec2, Vec2) {
     let mut move_dir = Vec2::ZERO;
+    let mut jump_velocity = Vec2::ZERO;
 
     let path = find_path(&pathfinding, current_position);
 
     if let Some(path) = path {
         if gizmos_visible {
             for i in 0..path.len() {
-                gizmos.circle_2d(path[i], 5.0, Color::GREEN);
+                gizmos.circle_2d(path[i].0, 5.0, Color::GREEN);
             }
         }
 
         if path.len() > 1 {
-            move_dir = (path[1] - path[0]).normalize();
+            let is_jumpable_connection = pathfinding.nodes[path[0].1]
+                .jumpable_connections
+                .contains(&path[1].1);
+
+            if is_jumpable_connection {
+                let delta_p = path[1].0 - path[0].0;
+                let gravity_acceleration = Vec2::new(0.0, -0.5);
+                let t_low_energy = 1.5
+                    * (4.0 * delta_p.dot(delta_p) / gravity_acceleration.dot(gravity_acceleration))
+                        .sqrt()
+                        .sqrt();
+                jump_velocity = delta_p / t_low_energy - gravity_acceleration * t_low_energy / 2.0;
+            }
+
+            move_dir = (path[1].0 - path[0].0).normalize();
         }
     }
 
-    move_dir
+    (move_dir, jump_velocity)
 }
 
 fn apply_movement_acceleration(
@@ -130,9 +169,9 @@ fn apply_gravity_toward_normal(
     if
     /*player_move_off_wall || */
     falling {
-        physics.acceleration.y = -0.5;
+        physics.acceleration.y = -GRAVITY_STRENGTH;
     } else {
-        let gravity_normal_dir = physics.normal * 0.5;
+        let gravity_normal_dir = physics.normal * GRAVITY_STRENGTH;
         physics.acceleration += gravity_normal_dir;
     }
 }

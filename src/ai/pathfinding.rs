@@ -1,10 +1,12 @@
 use bevy::{
     app::{App, Plugin},
     ecs::system::{ResMut, Resource},
-    math::Vec2,
+    math::{Vec2, Vec2Swizzles},
 };
 
-use crate::Level;
+use crate::{utils::line_intersect, Level};
+
+use super::platformer_ai::PLATFORMER_AI_JUMP_FORCE;
 
 pub struct PathfindingPlugin;
 
@@ -20,6 +22,36 @@ impl Plugin for PathfindingPlugin {
 }
 
 pub fn init_pathfinding_graph(level: &Level, mut pathfinding: ResMut<Pathfinding>) {
+    place_nodes(&mut pathfinding, level);
+
+    make_node_connections_2_way(&mut pathfinding);
+
+    remove_duplicate_nodes(&mut pathfinding);
+
+    make_node_ids_indices(&mut pathfinding);
+
+    make_jumpable_connections(&mut pathfinding, level);
+}
+
+#[derive(Debug, Clone)]
+pub struct PathfindingGraphNode {
+    pub id: usize,
+    pub position: Vec2,
+    pub polygon_index: usize,
+    pub line_indicies: Vec<usize>,
+    pub walkable_connections: Vec<usize>,
+    pub jumpable_connections: Vec<usize>,
+}
+
+#[derive(Resource)]
+pub struct Pathfinding {
+    pub nodes: Vec<PathfindingGraphNode>,
+    pub goal_graph_node: Option<PathfindingGraphNode>,
+    pub goal_position: Vec2,
+    pub active: bool,
+}
+
+pub fn place_nodes(pathfinding: &mut Pathfinding, level: &Level) {
     let mut outer_container_seen = false;
 
     // Place nodes
@@ -54,12 +86,15 @@ pub fn init_pathfinding_graph(level: &Level, mut pathfinding: ResMut<Pathfinding
                         id: pathfinding.nodes.len(),
                         position: node_pos,
                         polygon_index: polygon_index,
-                        line_index: line_index - 1,
-                        connections: Vec::new(),
+                        line_indicies: vec![(line_index - 1)],
+                        walkable_connections: Vec::new(),
+                        jumpable_connections: Vec::new(),
                     };
 
                     if j > 0 {
-                        new_node.connections.push(pathfinding.nodes.len() - 1);
+                        new_node
+                            .walkable_connections
+                            .push(pathfinding.nodes.len() - 1);
                     }
 
                     pathfinding.nodes.push(new_node);
@@ -68,102 +103,212 @@ pub fn init_pathfinding_graph(level: &Level, mut pathfinding: ResMut<Pathfinding
                     id: pathfinding.nodes.len(),
                     position: end,
                     polygon_index: polygon_index,
-                    line_index: line_index - 1,
-                    connections: vec![pathfinding.nodes.len() - 1],
+                    line_indicies: vec![(line_index - 1)],
+                    walkable_connections: vec![pathfinding.nodes.len() - 1],
+                    jumpable_connections: Vec::new(),
                 };
 
                 pathfinding.nodes.push(new_node);
             }
         }
     }
+}
 
-    // Make all connections 2-way
+/// Makes all of the connections between nodes 2-way
+pub fn make_node_connections_2_way(pathfinding: &mut Pathfinding) {
     for node_index in 0..pathfinding.nodes.len() {
         // Make a clone of the current node to appease the borrow checker
         let node = pathfinding.nodes[node_index].clone();
 
         // For each connection of the current node
-        for other_node_index in node.connections.iter() {
+        for other_node_index in node.walkable_connections.iter() {
             // Add the current node to the connections of the other node
             pathfinding.nodes[*other_node_index]
-                .connections
+                .walkable_connections
                 .push(node_index);
         }
     }
+}
 
-    // Remove duplicate nodes
-    {
-        let mut i = 0;
-        while i < pathfinding.nodes.len() {
-            let mut j = i + 1;
-            while j < pathfinding.nodes.len() {
-                if (pathfinding.nodes[i].position - pathfinding.nodes[j].position).length_squared()
-                    < 1.0
-                {
-                    // Append the connections to the first node
-                    let mut j_connections = pathfinding.nodes[j].connections.clone();
-                    pathfinding.nodes[i].connections.append(&mut j_connections);
+/// Removes redundant nodes that occupy the same position
+pub fn remove_duplicate_nodes(pathfinding: &mut Pathfinding) {
+    let mut i = 0;
+    while i < pathfinding.nodes.len() {
+        let mut j = i + 1;
+        while j < pathfinding.nodes.len() {
+            if (pathfinding.nodes[i].position - pathfinding.nodes[j].position).length_squared()
+                < 1.0
+            {
+                // Append the connections to the first node
+                let mut j_connections = pathfinding.nodes[j].walkable_connections.clone();
+                pathfinding.nodes[i]
+                    .walkable_connections
+                    .append(&mut j_connections);
 
-                    // Record the id of the nodes
-                    let first_node_id = pathfinding.nodes[i].id;
-                    let second_node_id = pathfinding.nodes[j].id;
+                // Record the id of the nodes
+                let first_node_id = pathfinding.nodes[i].id;
+                let second_node_id = pathfinding.nodes[j].id;
 
-                    // Remove the second node
-                    pathfinding.nodes.remove(j);
+                // Append the line indicies to the first node
+                let second_node_line_index = pathfinding.nodes[j].line_indicies[0];
+                pathfinding.nodes[i]
+                    .line_indicies
+                    .push(second_node_line_index);
 
-                    // Update the connections of the nodes that were connected to the second node
-                    for node in &mut pathfinding.nodes {
-                        for connection in &mut node.connections {
-                            if *connection == second_node_id {
-                                *connection = first_node_id;
-                            }
+                // Remove the second node
+                pathfinding.nodes.remove(j);
+
+                // Update the connections of the nodes that were connected to the second node
+                for node in &mut pathfinding.nodes {
+                    for connection in &mut node.walkable_connections {
+                        if *connection == second_node_id {
+                            *connection = first_node_id;
                         }
                     }
-                } else {
-                    j += 1;
+                }
+            } else {
+                j += 1;
+            }
+        }
+        i += 1;
+    }
+}
+
+/// Updates the ids and connections to reflect the indices of the nodes
+pub fn make_node_ids_indices(pathfinding: &mut Pathfinding) {
+    let pathfinding_nodes_copy = pathfinding.nodes.clone();
+
+    for node_index in 0..pathfinding.nodes.len() {
+        pathfinding.nodes[node_index].id = node_index;
+
+        for connection_index in 0..pathfinding.nodes[node_index].walkable_connections.len() {
+            let connected_node = pathfinding_nodes_copy
+                .iter()
+                .find(|n| {
+                    n.id == pathfinding.nodes[node_index].walkable_connections[connection_index]
+                })
+                .unwrap();
+
+            let connected_node_index = pathfinding_nodes_copy
+                .iter()
+                .position(|n| n.id == connected_node.id)
+                .unwrap();
+
+            pathfinding.nodes[node_index].walkable_connections[connection_index] =
+                connected_node_index;
+        }
+    }
+}
+
+pub fn make_jumpable_connections(pathfinding: &mut Pathfinding, level: &Level) {
+    'main_nodes: for i in 0..pathfinding.nodes.len() {
+        let main_node = &pathfinding.nodes[i];
+
+        let mut jumpable_connections: Vec<usize> = Vec::new();
+
+        'other_nodes: for j in 0..pathfinding.nodes.len() {
+            // Make sure we're not comparing the same node
+            if i == j {
+                continue;
+            }
+
+            let other_node = &pathfinding.nodes[j];
+
+            // Make sure the nodes are not on the same polygon
+            if main_node.polygon_index == other_node.polygon_index {
+                continue;
+            }
+
+            'polygons: for polygon_index in 0..level.polygons.len() {
+                let polygon = &level.polygons[polygon_index];
+
+                'polygon_lines: for line_index in 1..polygon.points.len() {
+                    if main_node.polygon_index == polygon_index
+                        && main_node.line_indicies.contains(&(line_index - 1))
+                        || other_node.polygon_index == polygon_index
+                            && other_node.line_indicies.contains(&(line_index - 1))
+                    {
+                        continue 'polygon_lines;
+                    }
+
+                    let start = polygon.points[line_index - 1];
+                    let end = polygon.points[line_index];
+
+                    let intersection =
+                        line_intersect(start, end, main_node.position, other_node.position);
+
+                    if intersection.is_some() {
+                        continue 'other_nodes;
+                    }
+
+                    if !jumpability_test(main_node, other_node, level) {
+                        continue 'other_nodes;
+                    }
                 }
             }
-            i += 1;
+
+            jumpable_connections.push(j);
         }
+
+        pathfinding.nodes[i].jumpable_connections = jumpable_connections;
+    }
+}
+
+fn jumpability_test(
+    main_node: &PathfindingGraphNode,
+    other_node: &PathfindingGraphNode,
+    level: &Level,
+) -> bool {
+    let start_pos = main_node.position;
+    let goal_pos = other_node.position;
+
+    let delta_p = goal_pos - start_pos;
+    let acceleration = Vec2::new(0.0, -0.5);
+    let b1 = delta_p.dot(acceleration) + PLATFORMER_AI_JUMP_FORCE * PLATFORMER_AI_JUMP_FORCE;
+    let discriminant = b1 * b1 - acceleration.dot(acceleration) * delta_p.dot(delta_p);
+
+    if discriminant < 0.0 {
+        return false;
     }
 
-    // Update the ids and connections to reflect the indices of the nodes
-    {
-        let pathfinding_nodes_copy = pathfinding.nodes.clone();
+    let t_low_energy = (4.0 * delta_p.dot(delta_p) / acceleration.dot(acceleration))
+        .sqrt()
+        .sqrt();
+    let launch_velocity = delta_p / t_low_energy - acceleration * t_low_energy / 2.0;
+    let timestep = t_low_energy / 10 as f32;
 
-        for node_index in 0..pathfinding.nodes.len() {
-            pathfinding.nodes[node_index].id = node_index;
+    let mut prev_pos = start_pos;
 
-            for connection_index in 0..pathfinding.nodes[node_index].connections.len() {
-                let connected_node = pathfinding_nodes_copy
-                    .iter()
-                    .find(|n| n.id == pathfinding.nodes[node_index].connections[connection_index])
-                    .unwrap();
+    for i in 1..10 {
+        let current_t = i as f32 * timestep;
+        let position =
+            start_pos + launch_velocity * current_t + acceleration * current_t * current_t / 2.0;
 
-                let connected_node_index = pathfinding_nodes_copy
-                    .iter()
-                    .position(|n| n.id == connected_node.id)
-                    .unwrap();
+        'polygons: for polygon_index in 0..level.polygons.len() {
+            let polygon = &level.polygons[polygon_index];
 
-                pathfinding.nodes[node_index].connections[connection_index] = connected_node_index;
+            'polygon_lines: for line_index in 1..polygon.points.len() {
+                if main_node.polygon_index == polygon_index
+                    && main_node.line_indicies.contains(&(line_index - 1))
+                    || other_node.polygon_index == polygon_index
+                        && other_node.line_indicies.contains(&(line_index - 1))
+                {
+                    continue 'polygon_lines;
+                }
+
+                let start = polygon.points[line_index - 1];
+                let end = polygon.points[line_index];
+
+                let intersection = line_intersect(prev_pos, position, start, end);
+
+                if intersection.is_some() {
+                    return false;
+                }
             }
         }
+
+        prev_pos = position;
     }
-}
 
-#[derive(Debug, Clone)]
-pub struct PathfindingGraphNode {
-    pub id: usize,
-    pub position: Vec2,
-    pub polygon_index: usize,
-    pub line_index: usize,
-    pub connections: Vec<usize>,
-}
-
-#[derive(Resource)]
-pub struct Pathfinding {
-    pub nodes: Vec<PathfindingGraphNode>,
-    pub goal_graph_node: Option<PathfindingGraphNode>,
-    pub goal_position: Vec2,
-    pub active: bool,
+    return true;
 }

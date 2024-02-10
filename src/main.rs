@@ -12,7 +12,7 @@ use bevy::{
     app::AppExit,
     window::{PresentMode, PrimaryWindow},
 };
-use collisions::CollisionPlugin;
+use collisions::{s_collision, CollisionPlugin};
 use level::{generate_level_polygons, Polygon};
 use pathfinding::{init_pathfinding_graph, Pathfinding, PathfindingPlugin};
 
@@ -42,7 +42,7 @@ fn main() {
         // Update systems
         .add_systems(Update, s_input)
         .add_systems(Update, s_move_goal_point.after(s_input))
-        .add_systems(Update, s_render.after(s_move_goal_point))
+        .add_systems(Update, s_render.after(s_collision))
         .run();
 }
 
@@ -122,7 +122,7 @@ pub fn s_input(
 
     // R to reset
     if keyboard_input.just_pressed(KeyCode::R) {
-        for (mut transform, mut physics, _) in platformer_ai_query.iter_mut() {
+        for (mut transform, mut physics, _platformer_ai) in platformer_ai_query.iter_mut() {
             transform.translation = Vec3::new(0.0, -250.0, 0.0);
             physics.prev_position = Vec2::ZERO;
             physics.velocity = Vec2::ZERO;
@@ -269,7 +269,7 @@ pub fn s_render(
     );
 
     // Draw the platformer AI
-    for (transform, physics, _) in platformer_ai_query.iter() {
+    for (transform, physics, _platformer_ai) in platformer_ai_query.iter() {
         gizmos.circle_2d(transform.translation.xy(), physics.radius, Color::RED);
     }
 }

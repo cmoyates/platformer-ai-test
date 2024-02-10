@@ -15,377 +15,16 @@ pub fn generate_level_polygons(grid_size: f32) -> (Vec<Polygon>, Vec2, Vec2) {
     let mut rng = rand::thread_rng();
 
     let res = std::str::from_utf8(LEVEL_DATA);
-    let json_data: Vec<Vec<u32>> = serde_json::from_str(&res.unwrap()).unwrap();
+    let level_grid_data: Vec<Vec<usize>> = serde_json::from_str(&res.unwrap()).unwrap();
 
-    let size = Vec2::new(json_data[0].len() as f32, json_data.len() as f32);
+    let size = Vec2::new(
+        level_grid_data[0].len() as f32,
+        level_grid_data.len() as f32,
+    );
 
     let offset = Vec2::new(size.x * -grid_size / 2.0, size.y * grid_size / 2.0);
 
-    let mut line_points: Vec<Vec2> = Vec::new();
-
-    for y in 0..size.y as usize {
-        for x in 0..size.x as usize {
-            let tile = json_data[y][x];
-
-            match tile {
-                1 => {
-                    // Squares
-
-                    // Left edge
-                    if x == 0 || json_data[y][x - 1] == 0 {
-                        line_points.push(Vec2::new(x as f32 * grid_size, y as f32 * grid_size));
-                        line_points
-                            .push(Vec2::new(x as f32 * grid_size, (y + 1) as f32 * grid_size));
-                    }
-                    // Right edge
-                    if x == json_data[y].len() - 1 || json_data[y][x + 1] == 0 {
-                        line_points
-                            .push(Vec2::new((x + 1) as f32 * grid_size, y as f32 * grid_size));
-                        line_points.push(Vec2::new(
-                            (x + 1) as f32 * grid_size,
-                            (y + 1) as f32 * grid_size,
-                        ));
-                    }
-                    // Top edge
-                    if y == 0 || json_data[y - 1][x] == 0 {
-                        line_points.push(Vec2::new(x as f32 * grid_size, y as f32 * grid_size));
-                        line_points
-                            .push(Vec2::new((x + 1) as f32 * grid_size, y as f32 * grid_size));
-                    }
-                    // Bottom edge
-                    if y == size.y as usize - 1 || json_data[y + 1][x] == 0 {
-                        line_points
-                            .push(Vec2::new(x as f32 * grid_size, (y + 1) as f32 * grid_size));
-                        line_points.push(Vec2::new(
-                            (x + 1) as f32 * grid_size,
-                            (y + 1) as f32 * grid_size,
-                        ));
-                    }
-                }
-                2..=5 => {
-                    // Right triangles
-
-                    let triangle_type = tile - 2;
-
-                    match triangle_type {
-                        0 => {
-                            // Bottom left
-
-                            // Hypotenuse
-                            line_points.push(Vec2::new(x as f32 * grid_size, y as f32 * grid_size));
-                            line_points.push(Vec2::new(
-                                (x + 1) as f32 * grid_size,
-                                (y + 1) as f32 * grid_size,
-                            ));
-
-                            // Bottom edge
-                            if y == size.y as usize - 1 || json_data[y + 1][x] == 0 {
-                                line_points.push(Vec2::new(
-                                    x as f32 * grid_size,
-                                    (y + 1) as f32 * grid_size,
-                                ));
-                                line_points.push(Vec2::new(
-                                    (x + 1) as f32 * grid_size,
-                                    (y + 1) as f32 * grid_size,
-                                ));
-                            }
-
-                            // Left edge
-                            if x == 0 || json_data[y][x - 1] == 0 {
-                                line_points
-                                    .push(Vec2::new(x as f32 * grid_size, y as f32 * grid_size));
-                                line_points.push(Vec2::new(
-                                    x as f32 * grid_size,
-                                    (y + 1) as f32 * grid_size,
-                                ));
-                            }
-                        }
-                        1 => {
-                            // Bottom right
-
-                            // Hypotenuse
-                            line_points
-                                .push(Vec2::new((x + 1) as f32 * grid_size, y as f32 * grid_size));
-                            line_points
-                                .push(Vec2::new(x as f32 * grid_size, (y + 1) as f32 * grid_size));
-
-                            // Bottom edge
-                            if y == size.y as usize - 1 || json_data[y + 1][x] == 0 {
-                                line_points.push(Vec2::new(
-                                    x as f32 * grid_size,
-                                    (y + 1) as f32 * grid_size,
-                                ));
-                                line_points.push(Vec2::new(
-                                    (x + 1) as f32 * grid_size,
-                                    (y + 1) as f32 * grid_size,
-                                ));
-                            }
-
-                            // Right edge
-                            if x == json_data[y].len() - 1 || json_data[y][x + 1] == 0 {
-                                line_points.push(Vec2::new(
-                                    (x + 1) as f32 * grid_size,
-                                    y as f32 * grid_size,
-                                ));
-                                line_points.push(Vec2::new(
-                                    (x + 1) as f32 * grid_size,
-                                    (y + 1) as f32 * grid_size,
-                                ));
-                            }
-                        }
-                        2 => {
-                            // Top left
-
-                            // Hypotenuse
-                            line_points
-                                .push(Vec2::new(x as f32 * grid_size, (y + 1) as f32 * grid_size));
-                            line_points
-                                .push(Vec2::new((x + 1) as f32 * grid_size, y as f32 * grid_size));
-
-                            // Top edge
-                            if y == 0 || json_data[y - 1][x] == 0 {
-                                line_points
-                                    .push(Vec2::new(x as f32 * grid_size, y as f32 * grid_size));
-                                line_points.push(Vec2::new(
-                                    (x + 1) as f32 * grid_size,
-                                    y as f32 * grid_size,
-                                ));
-                            }
-
-                            // Left edge
-                            if x == 0 || json_data[y][x - 1] == 0 {
-                                line_points
-                                    .push(Vec2::new(x as f32 * grid_size, y as f32 * grid_size));
-                                line_points.push(Vec2::new(
-                                    x as f32 * grid_size,
-                                    (y + 1) as f32 * grid_size,
-                                ));
-                            }
-                        }
-                        3 => {
-                            // Top right
-
-                            // Hypotenuse
-                            line_points.push(Vec2::new(
-                                (x + 1) as f32 * grid_size,
-                                (y + 1) as f32 * grid_size,
-                            ));
-                            line_points.push(Vec2::new(x as f32 * grid_size, y as f32 * grid_size));
-
-                            // Top edge
-                            if y == 0 || json_data[y - 1][x] == 0 {
-                                line_points
-                                    .push(Vec2::new(x as f32 * grid_size, y as f32 * grid_size));
-                                line_points.push(Vec2::new(
-                                    (x + 1) as f32 * grid_size,
-                                    y as f32 * grid_size,
-                                ));
-                            }
-
-                            // Right edge
-                            if x == json_data[y].len() - 1 || json_data[y][x + 1] == 0 {
-                                line_points.push(Vec2::new(
-                                    (x + 1) as f32 * grid_size,
-                                    y as f32 * grid_size,
-                                ));
-                                line_points.push(Vec2::new(
-                                    (x + 1) as f32 * grid_size,
-                                    (y + 1) as f32 * grid_size,
-                                ));
-                            }
-                        }
-                        _ => {}
-                    }
-                }
-                6..=9 => {
-                    // // Isosceles triangles
-
-                    // let triangle_type = tile - 6;
-
-                    // match triangle_type {
-                    //     0 => {
-                    //         // Bottom
-
-                    //         // Top left
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(x as f32 * grid_size, (y + 1) as f32 * grid_size),
-                    //             Color::RED,
-                    //         ));
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(
-                    //                 (x as f32 + 0.5) as f32 * grid_size,
-                    //                 (y as f32 + 0.5) as f32 * grid_size,
-                    //             ),
-                    //             Color::RED,
-                    //         ));
-
-                    //         // Top right
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(
-                    //                 (x as f32 + 1.0) as f32 * grid_size,
-                    //                 (y + 1) as f32 * grid_size,
-                    //             ),
-                    //             Color::RED,
-                    //         ));
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(
-                    //                 (x as f32 + 0.5) as f32 * grid_size,
-                    //                 (y as f32 + 0.5) as f32 * grid_size,
-                    //             ),
-                    //             Color::RED,
-                    //         ));
-
-                    //         // Bottom edge
-                    //         if y == json_data.len() - 1 || json_data[y + 1][x] == 0 {
-                    //             line_points.push(Vertex::with_pos_color(
-                    //                 Vec2::new(x as f32 * grid_size, (y + 1) as f32 * grid_size),
-                    //                 Color::RED,
-                    //             ));
-                    //             line_points.push(Vertex::with_pos_color(
-                    //                 Vec2::new(
-                    //                     (x + 1) as f32 * grid_size,
-                    //                     (y + 1) as f32 * grid_size,
-                    //                 ),
-                    //                 Color::RED,
-                    //             ));
-                    //         }
-                    //     }
-                    //     1 => {
-                    //         // Top
-
-                    //         // Bottom left
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(x as f32 * grid_size, y as f32 * grid_size),
-                    //             Color::RED,
-                    //         ));
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(
-                    //                 (x as f32 + 0.5) as f32 * grid_size,
-                    //                 (y as f32 + 0.5) as f32 * grid_size,
-                    //             ),
-                    //             Color::RED,
-                    //         ));
-
-                    //         // Bottom right
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(
-                    //                 (x as f32 + 1.0) as f32 * grid_size,
-                    //                 y as f32 * grid_size,
-                    //             ),
-                    //             Color::RED,
-                    //         ));
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(
-                    //                 (x as f32 + 0.5) as f32 * grid_size,
-                    //                 (y as f32 + 0.5) as f32 * grid_size,
-                    //             ),
-                    //             Color::RED,
-                    //         ));
-
-                    //         // Top edge
-                    //         if y == 0 || json_data[y - 1][x] == 0 {
-                    //             line_points.push(Vertex::with_pos_color(
-                    //                 Vec2::new(x as f32 * grid_size, y as f32 * grid_size),
-                    //                 Color::RED,
-                    //             ));
-                    //             line_points.push(Vertex::with_pos_color(
-                    //                 Vec2::new((x + 1) as f32 * grid_size, y as f32 * grid_size),
-                    //                 Color::RED,
-                    //             ));
-                    //         }
-                    //     }
-                    //     2 => {
-                    //         // Left
-
-                    //         // Top right
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(x as f32 * grid_size, y as f32 * grid_size),
-                    //             Color::RED,
-                    //         ));
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(
-                    //                 (x as f32 + 0.5) as f32 * grid_size,
-                    //                 (y as f32 + 0.5) as f32 * grid_size,
-                    //             ),
-                    //             Color::RED,
-                    //         ));
-
-                    //         // Bottom right
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(x as f32 * grid_size, (y + 1) as f32 * grid_size),
-                    //             Color::RED,
-                    //         ));
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(
-                    //                 (x as f32 + 0.5) as f32 * grid_size,
-                    //                 (y as f32 + 0.5) as f32 * grid_size,
-                    //             ),
-                    //             Color::RED,
-                    //         ));
-
-                    //         // Left edge
-                    //         if x == 0 || json_data[y][x - 1] == 0 {
-                    //             line_points.push(Vertex::with_pos_color(
-                    //                 Vec2::new(x as f32 * grid_size, y as f32 * grid_size),
-                    //                 Color::RED,
-                    //             ));
-                    //             line_points.push(Vertex::with_pos_color(
-                    //                 Vec2::new(x as f32 * grid_size, (y + 1) as f32 * grid_size),
-                    //                 Color::RED,
-                    //             ));
-                    //         }
-                    //     }
-                    //     3 => {
-                    //         // Right
-
-                    //         // Top left
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new((x + 1) as f32 * grid_size, y as f32 * grid_size),
-                    //             Color::RED,
-                    //         ));
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(
-                    //                 (x as f32 + 0.5) as f32 * grid_size,
-                    //                 (y as f32 + 0.5) as f32 * grid_size,
-                    //             ),
-                    //             Color::RED,
-                    //         ));
-
-                    //         // Bottom left
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new((x + 1) as f32 * grid_size, (y + 1) as f32 * grid_size),
-                    //             Color::RED,
-                    //         ));
-                    //         line_points.push(Vertex::with_pos_color(
-                    //             Vec2::new(
-                    //                 (x as f32 + 0.5) as f32 * grid_size,
-                    //                 (y as f32 + 0.5) as f32 * grid_size,
-                    //             ),
-                    //             Color::RED,
-                    //         ));
-
-                    //         // Right edge
-                    //         if x == json_data[y].len() - 1 || json_data[y][x + 1] == 0 {
-                    //             line_points.push(Vertex::with_pos_color(
-                    //                 Vec2::new((x + 1) as f32 * grid_size, y as f32 * grid_size),
-                    //                 Color::RED,
-                    //             ));
-                    //             line_points.push(Vertex::with_pos_color(
-                    //                 Vec2::new(
-                    //                     (x + 1) as f32 * grid_size,
-                    //                     (y + 1) as f32 * grid_size,
-                    //                 ),
-                    //                 Color::RED,
-                    //             ));
-                    //         }
-                    //     }
-                    //     _ => {}
-                    // }
-                }
-                _ => {}
-            }
-        }
-    }
+    let mut line_points = get_line_points(level_grid_data, grid_size, size);
 
     let mut line_count = line_points.len() / 2;
 
@@ -623,4 +262,410 @@ fn point_in_polygon(polygon_lines: &Vec<Vec2>, point: Vec2) -> bool {
 pub struct PolygonLine {
     pub polygon_index: usize,
     pub line_index: usize,
+}
+
+fn get_line_points(level_grid_data: Vec<Vec<usize>>, grid_cell_size: f32, size: Vec2) -> Vec<Vec2> {
+    let mut line_points: Vec<Vec2> = Vec::new();
+
+    for y in 0..size.y as usize {
+        for x in 0..size.x as usize {
+            let tile = level_grid_data[y][x];
+
+            match tile {
+                1 => {
+                    // Squares
+
+                    // Left edge
+                    if x == 0 || level_grid_data[y][x - 1] == 0 {
+                        line_points.push(Vec2::new(
+                            x as f32 * grid_cell_size,
+                            y as f32 * grid_cell_size,
+                        ));
+                        line_points.push(Vec2::new(
+                            x as f32 * grid_cell_size,
+                            (y + 1) as f32 * grid_cell_size,
+                        ));
+                    }
+                    // Right edge
+                    if x == level_grid_data[y].len() - 1 || level_grid_data[y][x + 1] == 0 {
+                        line_points.push(Vec2::new(
+                            (x + 1) as f32 * grid_cell_size,
+                            y as f32 * grid_cell_size,
+                        ));
+                        line_points.push(Vec2::new(
+                            (x + 1) as f32 * grid_cell_size,
+                            (y + 1) as f32 * grid_cell_size,
+                        ));
+                    }
+                    // Top edge
+                    if y == 0 || level_grid_data[y - 1][x] == 0 {
+                        line_points.push(Vec2::new(
+                            x as f32 * grid_cell_size,
+                            y as f32 * grid_cell_size,
+                        ));
+                        line_points.push(Vec2::new(
+                            (x + 1) as f32 * grid_cell_size,
+                            y as f32 * grid_cell_size,
+                        ));
+                    }
+                    // Bottom edge
+                    if y == size.y as usize - 1 || level_grid_data[y + 1][x] == 0 {
+                        line_points.push(Vec2::new(
+                            x as f32 * grid_cell_size,
+                            (y + 1) as f32 * grid_cell_size,
+                        ));
+                        line_points.push(Vec2::new(
+                            (x + 1) as f32 * grid_cell_size,
+                            (y + 1) as f32 * grid_cell_size,
+                        ));
+                    }
+                }
+                2..=5 => {
+                    // Right triangles
+
+                    let triangle_type = tile - 2;
+
+                    match triangle_type {
+                        0 => {
+                            // Bottom left
+
+                            // Hypotenuse
+                            line_points.push(Vec2::new(
+                                x as f32 * grid_cell_size,
+                                y as f32 * grid_cell_size,
+                            ));
+                            line_points.push(Vec2::new(
+                                (x + 1) as f32 * grid_cell_size,
+                                (y + 1) as f32 * grid_cell_size,
+                            ));
+
+                            // Bottom edge
+                            if y == size.y as usize - 1 || level_grid_data[y + 1][x] == 0 {
+                                line_points.push(Vec2::new(
+                                    x as f32 * grid_cell_size,
+                                    (y + 1) as f32 * grid_cell_size,
+                                ));
+                                line_points.push(Vec2::new(
+                                    (x + 1) as f32 * grid_cell_size,
+                                    (y + 1) as f32 * grid_cell_size,
+                                ));
+                            }
+
+                            // Left edge
+                            if x == 0 || level_grid_data[y][x - 1] == 0 {
+                                line_points.push(Vec2::new(
+                                    x as f32 * grid_cell_size,
+                                    y as f32 * grid_cell_size,
+                                ));
+                                line_points.push(Vec2::new(
+                                    x as f32 * grid_cell_size,
+                                    (y + 1) as f32 * grid_cell_size,
+                                ));
+                            }
+                        }
+                        1 => {
+                            // Bottom right
+
+                            // Hypotenuse
+                            line_points.push(Vec2::new(
+                                (x + 1) as f32 * grid_cell_size,
+                                y as f32 * grid_cell_size,
+                            ));
+                            line_points.push(Vec2::new(
+                                x as f32 * grid_cell_size,
+                                (y + 1) as f32 * grid_cell_size,
+                            ));
+
+                            // Bottom edge
+                            if y == size.y as usize - 1 || level_grid_data[y + 1][x] == 0 {
+                                line_points.push(Vec2::new(
+                                    x as f32 * grid_cell_size,
+                                    (y + 1) as f32 * grid_cell_size,
+                                ));
+                                line_points.push(Vec2::new(
+                                    (x + 1) as f32 * grid_cell_size,
+                                    (y + 1) as f32 * grid_cell_size,
+                                ));
+                            }
+
+                            // Right edge
+                            if x == level_grid_data[y].len() - 1 || level_grid_data[y][x + 1] == 0 {
+                                line_points.push(Vec2::new(
+                                    (x + 1) as f32 * grid_cell_size,
+                                    y as f32 * grid_cell_size,
+                                ));
+                                line_points.push(Vec2::new(
+                                    (x + 1) as f32 * grid_cell_size,
+                                    (y + 1) as f32 * grid_cell_size,
+                                ));
+                            }
+                        }
+                        2 => {
+                            // Top left
+
+                            // Hypotenuse
+                            line_points.push(Vec2::new(
+                                x as f32 * grid_cell_size,
+                                (y + 1) as f32 * grid_cell_size,
+                            ));
+                            line_points.push(Vec2::new(
+                                (x + 1) as f32 * grid_cell_size,
+                                y as f32 * grid_cell_size,
+                            ));
+
+                            // Top edge
+                            if y == 0 || level_grid_data[y - 1][x] == 0 {
+                                line_points.push(Vec2::new(
+                                    x as f32 * grid_cell_size,
+                                    y as f32 * grid_cell_size,
+                                ));
+                                line_points.push(Vec2::new(
+                                    (x + 1) as f32 * grid_cell_size,
+                                    y as f32 * grid_cell_size,
+                                ));
+                            }
+
+                            // Left edge
+                            if x == 0 || level_grid_data[y][x - 1] == 0 {
+                                line_points.push(Vec2::new(
+                                    x as f32 * grid_cell_size,
+                                    y as f32 * grid_cell_size,
+                                ));
+                                line_points.push(Vec2::new(
+                                    x as f32 * grid_cell_size,
+                                    (y + 1) as f32 * grid_cell_size,
+                                ));
+                            }
+                        }
+                        3 => {
+                            // Top right
+
+                            // Hypotenuse
+                            line_points.push(Vec2::new(
+                                (x + 1) as f32 * grid_cell_size,
+                                (y + 1) as f32 * grid_cell_size,
+                            ));
+                            line_points.push(Vec2::new(
+                                x as f32 * grid_cell_size,
+                                y as f32 * grid_cell_size,
+                            ));
+
+                            // Top edge
+                            if y == 0 || level_grid_data[y - 1][x] == 0 {
+                                line_points.push(Vec2::new(
+                                    x as f32 * grid_cell_size,
+                                    y as f32 * grid_cell_size,
+                                ));
+                                line_points.push(Vec2::new(
+                                    (x + 1) as f32 * grid_cell_size,
+                                    y as f32 * grid_cell_size,
+                                ));
+                            }
+
+                            // Right edge
+                            if x == level_grid_data[y].len() - 1 || level_grid_data[y][x + 1] == 0 {
+                                line_points.push(Vec2::new(
+                                    (x + 1) as f32 * grid_cell_size,
+                                    y as f32 * grid_cell_size,
+                                ));
+                                line_points.push(Vec2::new(
+                                    (x + 1) as f32 * grid_cell_size,
+                                    (y + 1) as f32 * grid_cell_size,
+                                ));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                6..=9 => {
+                    // // Isosceles triangles
+
+                    // let triangle_type = tile - 6;
+
+                    // match triangle_type {
+                    //     0 => {
+                    //         // Bottom
+
+                    //         // Top left
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(x as f32 * grid_size, (y + 1) as f32 * grid_size),
+                    //             Color::RED,
+                    //         ));
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(
+                    //                 (x as f32 + 0.5) as f32 * grid_size,
+                    //                 (y as f32 + 0.5) as f32 * grid_size,
+                    //             ),
+                    //             Color::RED,
+                    //         ));
+
+                    //         // Top right
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(
+                    //                 (x as f32 + 1.0) as f32 * grid_size,
+                    //                 (y + 1) as f32 * grid_size,
+                    //             ),
+                    //             Color::RED,
+                    //         ));
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(
+                    //                 (x as f32 + 0.5) as f32 * grid_size,
+                    //                 (y as f32 + 0.5) as f32 * grid_size,
+                    //             ),
+                    //             Color::RED,
+                    //         ));
+
+                    //         // Bottom edge
+                    //         if y == json_data.len() - 1 || json_data[y + 1][x] == 0 {
+                    //             line_points.push(Vertex::with_pos_color(
+                    //                 Vec2::new(x as f32 * grid_size, (y + 1) as f32 * grid_size),
+                    //                 Color::RED,
+                    //             ));
+                    //             line_points.push(Vertex::with_pos_color(
+                    //                 Vec2::new(
+                    //                     (x + 1) as f32 * grid_size,
+                    //                     (y + 1) as f32 * grid_size,
+                    //                 ),
+                    //                 Color::RED,
+                    //             ));
+                    //         }
+                    //     }
+                    //     1 => {
+                    //         // Top
+
+                    //         // Bottom left
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(x as f32 * grid_size, y as f32 * grid_size),
+                    //             Color::RED,
+                    //         ));
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(
+                    //                 (x as f32 + 0.5) as f32 * grid_size,
+                    //                 (y as f32 + 0.5) as f32 * grid_size,
+                    //             ),
+                    //             Color::RED,
+                    //         ));
+
+                    //         // Bottom right
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(
+                    //                 (x as f32 + 1.0) as f32 * grid_size,
+                    //                 y as f32 * grid_size,
+                    //             ),
+                    //             Color::RED,
+                    //         ));
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(
+                    //                 (x as f32 + 0.5) as f32 * grid_size,
+                    //                 (y as f32 + 0.5) as f32 * grid_size,
+                    //             ),
+                    //             Color::RED,
+                    //         ));
+
+                    //         // Top edge
+                    //         if y == 0 || json_data[y - 1][x] == 0 {
+                    //             line_points.push(Vertex::with_pos_color(
+                    //                 Vec2::new(x as f32 * grid_size, y as f32 * grid_size),
+                    //                 Color::RED,
+                    //             ));
+                    //             line_points.push(Vertex::with_pos_color(
+                    //                 Vec2::new((x + 1) as f32 * grid_size, y as f32 * grid_size),
+                    //                 Color::RED,
+                    //             ));
+                    //         }
+                    //     }
+                    //     2 => {
+                    //         // Left
+
+                    //         // Top right
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(x as f32 * grid_size, y as f32 * grid_size),
+                    //             Color::RED,
+                    //         ));
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(
+                    //                 (x as f32 + 0.5) as f32 * grid_size,
+                    //                 (y as f32 + 0.5) as f32 * grid_size,
+                    //             ),
+                    //             Color::RED,
+                    //         ));
+
+                    //         // Bottom right
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(x as f32 * grid_size, (y + 1) as f32 * grid_size),
+                    //             Color::RED,
+                    //         ));
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(
+                    //                 (x as f32 + 0.5) as f32 * grid_size,
+                    //                 (y as f32 + 0.5) as f32 * grid_size,
+                    //             ),
+                    //             Color::RED,
+                    //         ));
+
+                    //         // Left edge
+                    //         if x == 0 || json_data[y][x - 1] == 0 {
+                    //             line_points.push(Vertex::with_pos_color(
+                    //                 Vec2::new(x as f32 * grid_size, y as f32 * grid_size),
+                    //                 Color::RED,
+                    //             ));
+                    //             line_points.push(Vertex::with_pos_color(
+                    //                 Vec2::new(x as f32 * grid_size, (y + 1) as f32 * grid_size),
+                    //                 Color::RED,
+                    //             ));
+                    //         }
+                    //     }
+                    //     3 => {
+                    //         // Right
+
+                    //         // Top left
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new((x + 1) as f32 * grid_size, y as f32 * grid_size),
+                    //             Color::RED,
+                    //         ));
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(
+                    //                 (x as f32 + 0.5) as f32 * grid_size,
+                    //                 (y as f32 + 0.5) as f32 * grid_size,
+                    //             ),
+                    //             Color::RED,
+                    //         ));
+
+                    //         // Bottom left
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new((x + 1) as f32 * grid_size, (y + 1) as f32 * grid_size),
+                    //             Color::RED,
+                    //         ));
+                    //         line_points.push(Vertex::with_pos_color(
+                    //             Vec2::new(
+                    //                 (x as f32 + 0.5) as f32 * grid_size,
+                    //                 (y as f32 + 0.5) as f32 * grid_size,
+                    //             ),
+                    //             Color::RED,
+                    //         ));
+
+                    //         // Right edge
+                    //         if x == json_data[y].len() - 1 || json_data[y][x + 1] == 0 {
+                    //             line_points.push(Vertex::with_pos_color(
+                    //                 Vec2::new((x + 1) as f32 * grid_size, y as f32 * grid_size),
+                    //                 Color::RED,
+                    //             ));
+                    //             line_points.push(Vertex::with_pos_color(
+                    //                 Vec2::new(
+                    //                     (x + 1) as f32 * grid_size,
+                    //                     (y + 1) as f32 * grid_size,
+                    //                 ),
+                    //                 Color::RED,
+                    //             ));
+                    //         }
+                    //     }
+                    //     _ => {}
+                    // }
+                }
+                _ => {}
+            }
+        }
+    }
+
+    return line_points;
 }

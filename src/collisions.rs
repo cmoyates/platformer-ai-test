@@ -1,11 +1,16 @@
 use bevy::{
     app::{App, Plugin, Update},
-    ecs::system::{Query, Res},
+    ecs::{
+        schedule::IntoSystemConfigs,
+        system::{Query, Res},
+    },
+    gizmos::gizmos::Gizmos,
     math::{Vec2, Vec3Swizzles},
     transform::components::Transform,
 };
 
 use crate::{
+    ai::platformer_ai::s_platformer_ai_movement,
     utils::{line_intersect, side_of_line_detection},
     Level, Physics,
 };
@@ -14,12 +19,16 @@ pub struct CollisionPlugin;
 
 impl Plugin for CollisionPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Update, s_collision);
+        app.add_systems(Update, s_collision.after(s_platformer_ai_movement));
     }
 }
 
-pub fn s_collision(mut entity_query: Query<(&mut Transform, &mut Physics)>, level: Res<Level>) {
-    for (mut transform, mut physics) in entity_query.iter_mut() {
+pub fn s_collision(
+    mut entity_query: Query<(&mut Transform, &mut Physics)>,
+    level: Res<Level>,
+    mut gizmos: Gizmos,
+) {
+    if let Ok((mut transform, mut physics)) = entity_query.get_single_mut() {
         let mut adjustment = Vec2::ZERO;
         let mut new_normal = Vec2::ZERO;
 
@@ -60,17 +69,40 @@ pub fn s_collision(mut entity_query: Query<(&mut Transform, &mut Physics)>, leve
                 let colliding_with_line = distance_sq <= physics.radius.powi(2);
                 colliding_with_polygon = colliding_with_polygon || colliding_with_line;
 
-                let touching_line = distance_sq <= (physics.radius + 0.5).powi(2);
+                let touch_radius = physics.radius + 0.5;
+
+                let touching_line = distance_sq <= touch_radius.powi(2);
 
                 if touching_line {
                     let normal_dir = (transform.translation.xy() - projection).normalize_or_zero();
 
-                    // Add the normal dir to the players new normal
-                    new_normal -= normal_dir;
+                    // If the line is not above the player
+                    if normal_dir.y >= -0.01 {
+                        // Add the normal dir to the players new normal
+                        new_normal -= normal_dir;
+
+                        // // If the player is on a wall
+                        // if normal_dir.x.abs() >= 0.8 {
+                        //     player_data.walled_timer = MAX_WALLED_TIMER * normal_dir.x as i32;
+                        //     player_data.has_wall_jumped = false;
+                        // }
+
+                        // // If the player is on the ground
+                        // if normal_dir.y > 0.01 {
+                        //     player_data.grounded_timer = MAX_GROUNDED_TIMER;
+                        //     player_data.walled_timer = 0;
+                        //     player_data.has_wall_jumped = false;
+                        // }
+                    }
                 }
 
                 if colliding_with_line {
                     let mut delta = (transform.translation.xy() - projection).normalize_or_zero();
+
+                    if delta.y < -0.01 {
+                        // println!("Hit ceiling");
+                        physics.velocity.y = 0.0;
+                    }
 
                     delta *= physics.radius - distance_sq.sqrt();
 
@@ -82,16 +114,21 @@ pub fn s_collision(mut entity_query: Query<(&mut Transform, &mut Physics)>, leve
                     }
                 }
             }
-            if colliding_with_polygon && intersect_counter % 2 == 1 {
+
+            let inside_polygon = intersect_counter % 2 == 1;
+
+            if colliding_with_polygon && inside_polygon && !polygon.is_container {
                 transform.translation = physics.prev_position.extend(0.0);
             }
         }
 
-        // Update the normal
-        physics.normal = new_normal.normalize_or_zero();
+        // Update the players normal
+        new_normal = new_normal.normalize_or_zero();
+        physics.normal = new_normal;
 
         // Remove the players velocity in the direction of the normal
         let velocity_adjustment = physics.velocity.dot(new_normal) * new_normal;
+
         physics.velocity -= velocity_adjustment;
 
         // Update the players position

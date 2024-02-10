@@ -14,7 +14,7 @@ The behavior is supposed to resemble that of the lizards from [Rain World](https
     - [x] Connect the nodes
     - [x] Remove duplicate nodes
     - [x] Fix the order
-    - [ ] Jumping connections
+    - [x] [Jumping connections](https://gamedev.stackexchange.com/questions/71392/how-do-i-determine-a-good-path-for-2d-artillery-projectiles)
 
   - [x] A\*
 

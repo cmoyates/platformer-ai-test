@@ -43,12 +43,19 @@ pub fn s_platformer_ai_movement(
     mut gizmos: Gizmos,
 ) {
     for (mut transform, mut physics, mut platformer_ai) in platformer_ai_query.iter_mut() {
-        let (move_dir, jump_velocity) = get_move_inputs(
-            pathfinding.as_ref(),
-            transform.translation.xy(),
-            &mut gizmos,
-            gismo_visible.visible,
-        );
+        let (move_dir, jump_velocity) = if physics.rememebered_move_dir.is_some() {
+            (
+                physics.rememebered_move_dir.unwrap(),
+                Vec2::new(0.0, PLATFORMER_AI_JUMP_FORCE),
+            )
+        } else {
+            get_move_inputs(
+                pathfinding.as_ref(),
+                transform.translation.xy(),
+                &mut gizmos,
+                gismo_visible.visible,
+            )
+        };
 
         if gismo_visible.visible {
             gizmos.line_2d(
@@ -74,15 +81,29 @@ pub fn s_platformer_ai_movement(
                     // Jump
                     physics.velocity = jump_velocity;
                     physics.grounded = false;
-                    // println!("Jump!!!");
+                    physics.has_wall_jumped = false;
+                    physics.walled = 0;
+
+                    physics.rememebered_move_dir = Some(if move_dir.dot(Vec2::X).signum() == 1.0 {
+                        Vec2::X
+                    } else {
+                        -Vec2::X
+                    });
+                    println!("Jump!!!");
                 }
                 // If on a wall
                 else if physics.walled != 0 {
                     // Wall jump
                     physics.velocity = jump_velocity;
                     physics.walled = 0;
+                    physics.grounded = false;
                     physics.has_wall_jumped = true;
-                    // println!("Wall Jump!!!");
+                    physics.rememebered_move_dir = Some(if move_dir.dot(Vec2::X).signum() == 1.0 {
+                        Vec2::X
+                    } else {
+                        -Vec2::X
+                    });
+                    println!("Wall Jump!!!");
                 }
             }
         }
@@ -111,6 +132,7 @@ fn get_move_inputs(
 
                 prev_pos = path[i].0;
             }
+            gizmos.line_2d(prev_pos, pathfinding.goal_position, Color::GREEN);
         }
 
         if path.len() > 1 {
@@ -119,13 +141,14 @@ fn get_move_inputs(
                 .contains(&path[1].1);
 
             if is_jumpable_connection {
-                let delta_p = path[1].0 - path[0].0;
+                let node_position_delta = path[1].0 - path[0].0;
                 let gravity_acceleration = Vec2::new(0.0, -0.5);
-                let t_low_energy = 1.5
-                    * (4.0 * delta_p.dot(delta_p) / gravity_acceleration.dot(gravity_acceleration))
-                        .sqrt()
-                        .sqrt();
-                jump_velocity = delta_p / t_low_energy - gravity_acceleration * t_low_energy / 2.0;
+                let jump_time = (4.0 * node_position_delta.dot(node_position_delta)
+                    / gravity_acceleration.dot(gravity_acceleration))
+                .sqrt()
+                .sqrt();
+                jump_velocity =
+                    node_position_delta / jump_time - gravity_acceleration * jump_time / 2.0;
             }
 
             move_dir = (path[1].0 - path[0].0).normalize();

@@ -33,12 +33,6 @@ pub fn s_collision(
         let mut adjustment = Vec2::ZERO;
         let mut new_normal = Vec2::ZERO;
 
-        gizmos.line_2d(
-            transform.translation.xy(),
-            transform.translation.xy() + Vec2::new(2.0, 1.0) * 10000.0,
-            Color::RED,
-        );
-
         for polygon_index in 0..level.polygons.len() {
             let polygon = level.polygons.get(polygon_index).unwrap();
 
@@ -59,8 +53,6 @@ pub fn s_collision(
                     );
 
                     if intersection.is_some() {
-                        gizmos.circle_2d(intersection.unwrap(), 5.0, Color::RED);
-
                         intersect_counter += 1;
                     }
                 }
@@ -92,8 +84,13 @@ pub fn s_collision(
 
                         // If the player is on a wall
                         if normal_dir.x.abs() >= 0.8 {
+                            if physics.walled == 0 {
+                                physics.velocity.y = 0.0;
+                                physics.acceleration.y = 0.0;
+                            }
                             physics.walled = normal_dir.x.signum() as i8;
                             physics.has_wall_jumped = false;
+                            physics.rememebered_move_dir = None;
                         }
 
                         // If the player is on the ground
@@ -101,6 +98,7 @@ pub fn s_collision(
                             physics.grounded = true;
                             physics.walled = 0;
                             physics.has_wall_jumped = false;
+                            physics.rememebered_move_dir = None;
                         }
                     }
                 }

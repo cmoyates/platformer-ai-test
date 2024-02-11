@@ -1,7 +1,7 @@
 use bevy::{
     app::{App, Plugin},
     ecs::system::{ResMut, Resource},
-    math::{Vec2, Vec2Swizzles},
+    math::Vec2,
 };
 
 use crate::{utils::line_intersect, Level};
@@ -201,7 +201,7 @@ pub fn make_node_ids_indices(pathfinding: &mut Pathfinding) {
 }
 
 pub fn make_jumpable_connections(pathfinding: &mut Pathfinding, level: &Level) {
-    'main_nodes: for i in 0..pathfinding.nodes.len() {
+    for i in 0..pathfinding.nodes.len() {
         let main_node = &pathfinding.nodes[i];
 
         let mut jumpable_connections: Vec<usize> = Vec::new();
@@ -219,7 +219,7 @@ pub fn make_jumpable_connections(pathfinding: &mut Pathfinding, level: &Level) {
                 continue;
             }
 
-            'polygons: for polygon_index in 0..level.polygons.len() {
+            for polygon_index in 0..level.polygons.len() {
                 let polygon = &level.polygons[polygon_index];
 
                 'polygon_lines: for line_index in 1..polygon.points.len() {
@@ -280,11 +280,12 @@ fn jumpability_test(
     let mut prev_pos = start_pos;
 
     for i in 1..10 {
-        let current_t = i as f32 * timestep;
-        let position =
-            start_pos + launch_velocity * current_t + acceleration * current_t * current_t / 2.0;
+        let current_jump_time = i as f32 * timestep;
+        let position = start_pos
+            + launch_velocity * current_jump_time
+            + acceleration * current_jump_time * current_jump_time / 2.0;
 
-        'polygons: for polygon_index in 0..level.polygons.len() {
+        for polygon_index in 0..level.polygons.len() {
             let polygon = &level.polygons[polygon_index];
 
             'polygon_lines: for line_index in 1..polygon.points.len() {

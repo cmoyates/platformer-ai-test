@@ -8,7 +8,7 @@ The behavior is supposed to resemble that of the lizards from [Rain World](https
 
 - [ ] Implement [platformer pathfinding](https://www.youtube.com/watch?v=kNI2I8kzpnE&t=123s)
 
-  - [ ] Contruct node graph
+  - [x] Contruct node graph
 
     - [x] Place nodes in all valid positions
     - [x] Connect the nodes

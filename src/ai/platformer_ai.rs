@@ -34,7 +34,11 @@ impl Plugin for PlatformerAIPlugin {
 }
 
 #[derive(Component)]
-pub struct PlatformerAI {}
+pub struct PlatformerAI {
+    pub current_target_node: Option<usize>,
+    pub jump_from_pos: Option<Vec2>,
+    pub jump_to_pos: Option<Vec2>,
+}
 
 pub fn s_platformer_ai_movement(
     mut platformer_ai_query: Query<(&mut Transform, &mut Physics, &mut PlatformerAI)>,
@@ -43,19 +47,23 @@ pub fn s_platformer_ai_movement(
     mut gizmos: Gizmos,
 ) {
     for (mut transform, mut physics, mut platformer_ai) in platformer_ai_query.iter_mut() {
-        let (move_dir, jump_velocity) = if physics.rememebered_move_dir.is_some() {
-            (
-                physics.rememebered_move_dir.unwrap(),
-                Vec2::new(0.0, PLATFORMER_AI_JUMP_FORCE),
-            )
-        } else {
-            get_move_inputs(
-                pathfinding.as_ref(),
-                transform.translation.xy(),
-                &mut gizmos,
-                gismo_visible.visible,
-            )
-        };
+        let (move_dir, jump_velocity, jump_from_node, jump_to_node) =
+            if physics.rememebered_move_dir.is_some() {
+                (
+                    physics.rememebered_move_dir.unwrap(),
+                    Vec2::new(0.0, PLATFORMER_AI_JUMP_FORCE),
+                    None,
+                    None,
+                )
+            } else {
+                get_move_inputs(
+                    pathfinding.as_ref(),
+                    transform.translation.xy(),
+                    &mut gizmos,
+                    gismo_visible.visible,
+                    physics.radius,
+                )
+            };
 
         if gismo_visible.visible {
             gizmos.line_2d(
@@ -75,26 +83,30 @@ pub fn s_platformer_ai_movement(
         // Jumping
         {
             // If the player is trying to jump
-            if jump_velocity.length_squared() > 0.0 {
+            if jump_velocity.length_squared() > 0.0 && !falling {
                 // If on the ground
                 if physics.grounded {
                     // Jump
                     physics.velocity = jump_velocity;
+                    physics.acceleration.x = 0.0;
+                    physics.acceleration.y = -GRAVITY_STRENGTH;
                     physics.grounded = false;
                     physics.has_wall_jumped = false;
                     physics.walled = 0;
 
-                    physics.rememebered_move_dir = Some(if move_dir.dot(Vec2::X).signum() == 1.0 {
-                        Vec2::X
-                    } else {
-                        -Vec2::X
-                    });
+                    // physics.rememebered_move_dir = Some(if move_dir.dot(Vec2::X).signum() == 1.0 {
+                    //     Vec2::X
+                    // } else {
+                    //     -Vec2::X
+                    // });
                     println!("Jump!!!");
                 }
                 // If on a wall
                 else if physics.walled != 0 {
                     // Wall jump
                     physics.velocity = jump_velocity;
+                    physics.acceleration.x = 0.0;
+                    physics.acceleration.y = -GRAVITY_STRENGTH;
                     physics.walled = 0;
                     physics.grounded = false;
                     physics.has_wall_jumped = true;
@@ -104,11 +116,17 @@ pub fn s_platformer_ai_movement(
                         -Vec2::X
                     });
                     println!("Wall Jump!!!");
+                    dbg!(move_dir);
+                    dbg!(transform.translation.xy());
+                    platformer_ai.jump_from_pos = jump_from_node;
+                    platformer_ai.jump_to_pos = jump_to_node;
                 }
             }
         }
 
         update_physics_and_transform(&mut physics, &mut transform);
+
+        // dbg!(physics.velocity);
     }
 }
 
@@ -117,9 +135,12 @@ fn get_move_inputs(
     current_position: Vec2,
     gizmos: &mut Gizmos,
     gizmos_visible: bool,
-) -> (Vec2, Vec2) {
+    radius: f32,
+) -> (Vec2, Vec2, Option<Vec2>, Option<Vec2>) {
     let mut move_dir = Vec2::ZERO;
     let mut jump_velocity = Vec2::ZERO;
+    let mut jump_from_node = None;
+    let mut jump_to_node = None;
 
     let path = find_path(&pathfinding, current_position);
 
@@ -136,26 +157,51 @@ fn get_move_inputs(
         }
 
         if path.len() > 1 {
-            let is_jumpable_connection = pathfinding.nodes[path[0].1]
-                .jumpable_connections
-                .contains(&path[1].1);
+            let offset_current_node = path[0].0 + pathfinding.nodes[path[0].1].normal * radius;
+            let offset_next_node = path[1].0 + pathfinding.nodes[path[1].1].normal * radius;
 
-            if is_jumpable_connection {
-                let node_position_delta = path[1].0 - path[0].0;
-                let gravity_acceleration = Vec2::new(0.0, -0.5);
-                let jump_time = (4.0 * node_position_delta.dot(node_position_delta)
-                    / gravity_acceleration.dot(gravity_acceleration))
-                .sqrt()
-                .sqrt();
-                jump_velocity =
-                    node_position_delta / jump_time - gravity_acceleration * jump_time / 2.0;
+            let current_to_next_node = offset_next_node - current_position;
+            let current_node_to_next_node = offset_next_node - offset_current_node;
+
+            let targeting_next_node =
+                current_to_next_node.length_squared() <= current_node_to_next_node.length_squared();
+
+            let target_pos = if targeting_next_node {
+                offset_next_node
+            } else {
+                offset_current_node
+            };
+
+            if gizmos_visible {
+                gizmos.circle_2d(target_pos, 5.0, Color::PURPLE);
             }
 
-            move_dir = (path[1].0 - path[0].0).normalize();
+            move_dir = (target_pos - current_position).normalize_or_zero();
+
+            if targeting_next_node {
+                let is_jumpable_connection = pathfinding.nodes[path[0].1]
+                    .jumpable_connections
+                    .contains(&path[1].1);
+
+                if is_jumpable_connection {
+                    let node_position_delta = path[1].0 - path[0].0;
+                    let gravity_acceleration = Vec2::new(0.0, -GRAVITY_STRENGTH);
+                    let jump_time = 1.0
+                        * (4.0 * node_position_delta.dot(node_position_delta)
+                            / gravity_acceleration.dot(gravity_acceleration))
+                        .sqrt()
+                        .sqrt();
+                    jump_velocity =
+                        node_position_delta / jump_time - gravity_acceleration * jump_time / 2.0;
+
+                    jump_from_node = Some(offset_current_node);
+                    jump_to_node = Some(offset_next_node);
+                }
+            }
         }
     }
 
-    (move_dir, jump_velocity)
+    (move_dir, jump_velocity, jump_from_node, jump_to_node)
 }
 
 fn apply_movement_acceleration(
@@ -164,6 +210,12 @@ fn apply_movement_acceleration(
     falling: bool,
     no_move_dir: bool,
 ) {
+    // If the player is falling
+    if falling {
+        physics.acceleration = Vec2::ZERO;
+        return;
+    }
+
     // Apply acceleration
     physics.acceleration = (*move_dir * WANDER_MAX_SPEED - physics.velocity)
         * if no_move_dir {
@@ -174,11 +226,6 @@ fn apply_movement_acceleration(
             ACCELERATION_SCALERS.0
         };
 
-    // If the player is falling
-    if falling {
-        // Ignore any other acceleration in the y direction
-        physics.acceleration.y = 0.0;
-    }
     // // Unless the player is on a wall and is trying to move away from it
     // if !player_move_off_wall {
     //     // Remove the acceleration in the direction of the normal

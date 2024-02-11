@@ -6,12 +6,11 @@ use bevy::{
     },
     gizmos::gizmos::Gizmos,
     math::{Vec2, Vec3Swizzles},
-    render::color::Color,
     transform::components::Transform,
 };
 
 use crate::{
-    ai::platformer_ai::s_platformer_ai_movement,
+    ai::platformer_ai::{s_platformer_ai_movement, PlatformerAI},
     utils::{line_intersect, side_of_line_detection},
     Level, Physics,
 };
@@ -25,11 +24,11 @@ impl Plugin for CollisionPlugin {
 }
 
 pub fn s_collision(
-    mut entity_query: Query<(&mut Transform, &mut Physics)>,
+    mut entity_query: Query<(&mut Transform, &mut Physics, &mut PlatformerAI)>,
     level: Res<Level>,
     mut gizmos: Gizmos,
 ) {
-    if let Ok((mut transform, mut physics)) = entity_query.get_single_mut() {
+    if let Ok((mut transform, mut physics, mut platformer_ai)) = entity_query.get_single_mut() {
         let mut adjustment = Vec2::ZERO;
         let mut new_normal = Vec2::ZERO;
 
@@ -84,21 +83,21 @@ pub fn s_collision(
 
                         // If the player is on a wall
                         if normal_dir.x.abs() >= 0.8 {
-                            if physics.walled == 0 {
-                                physics.velocity.y = 0.0;
-                                physics.acceleration.y = 0.0;
-                            }
                             physics.walled = normal_dir.x.signum() as i8;
                             physics.has_wall_jumped = false;
+                            physics.grounded = false;
                             physics.rememebered_move_dir = None;
+                            platformer_ai.jump_from_pos = None;
+                            platformer_ai.jump_to_pos = None;
                         }
-
                         // If the player is on the ground
-                        if normal_dir.y > 0.01 {
+                        else if normal_dir.y > 0.01 {
                             physics.grounded = true;
                             physics.walled = 0;
                             physics.has_wall_jumped = false;
                             physics.rememebered_move_dir = None;
+                            platformer_ai.jump_from_pos = None;
+                            platformer_ai.jump_to_pos = None;
                         }
                     }
                 }

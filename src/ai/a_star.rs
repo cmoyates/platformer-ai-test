@@ -86,6 +86,7 @@ fn get_start_node(pathfinding: &Pathfinding, start_position: Vec2) -> AStarNode 
         line_indicies: vec![],
         walkable_connections: vec![],
         jumpable_connections: vec![],
+        normal: Vec2::ZERO,
     };
     let mut start_graph_node_index = f32::MAX;
 

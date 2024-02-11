@@ -4,7 +4,7 @@ use bevy::{
     math::Vec2,
 };
 
-use crate::{utils::line_intersect, Level};
+use crate::{utils::line_intersect, Level, GRAVITY_STRENGTH};
 
 use super::platformer_ai::PLATFORMER_AI_JUMP_FORCE;
 
@@ -31,6 +31,8 @@ pub fn init_pathfinding_graph(level: &Level, mut pathfinding: ResMut<Pathfinding
     make_node_ids_indices(&mut pathfinding);
 
     make_jumpable_connections(&mut pathfinding, level);
+
+    calculate_normals(&mut pathfinding, level);
 }
 
 #[derive(Debug, Clone)]
@@ -41,6 +43,7 @@ pub struct PathfindingGraphNode {
     pub line_indicies: Vec<usize>,
     pub walkable_connections: Vec<usize>,
     pub jumpable_connections: Vec<usize>,
+    pub normal: Vec2,
 }
 
 #[derive(Resource)]
@@ -89,6 +92,7 @@ pub fn place_nodes(pathfinding: &mut Pathfinding, level: &Level) {
                         line_indicies: vec![(line_index - 1)],
                         walkable_connections: Vec::new(),
                         jumpable_connections: Vec::new(),
+                        normal: Vec2::ZERO,
                     };
 
                     if j > 0 {
@@ -106,6 +110,7 @@ pub fn place_nodes(pathfinding: &mut Pathfinding, level: &Level) {
                     line_indicies: vec![(line_index - 1)],
                     walkable_connections: vec![pathfinding.nodes.len() - 1],
                     jumpable_connections: Vec::new(),
+                    normal: Vec2::ZERO,
                 };
 
                 pathfinding.nodes.push(new_node);
@@ -263,8 +268,9 @@ fn jumpability_test(
     let goal_pos = other_node.position;
 
     let delta_p = goal_pos - start_pos;
-    let acceleration = Vec2::new(0.0, -0.5);
-    let b1 = delta_p.dot(acceleration) + PLATFORMER_AI_JUMP_FORCE * PLATFORMER_AI_JUMP_FORCE;
+    let acceleration = Vec2::new(0.0, -GRAVITY_STRENGTH);
+    let v_max = PLATFORMER_AI_JUMP_FORCE - 1.0;
+    let b1 = delta_p.dot(acceleration) + v_max * v_max;
     let discriminant = b1 * b1 - acceleration.dot(acceleration) * delta_p.dot(delta_p);
 
     if discriminant < 0.0 {
@@ -291,8 +297,6 @@ fn jumpability_test(
             'polygon_lines: for line_index in 1..polygon.points.len() {
                 if main_node.polygon_index == polygon_index
                     && main_node.line_indicies.contains(&(line_index - 1))
-                    || other_node.polygon_index == polygon_index
-                        && other_node.line_indicies.contains(&(line_index - 1))
                 {
                     continue 'polygon_lines;
                 }
@@ -300,10 +304,22 @@ fn jumpability_test(
                 let start = polygon.points[line_index - 1];
                 let end = polygon.points[line_index];
 
-                let intersection = line_intersect(prev_pos, position, start, end);
+                let line_normal = Vec2::new(-end.y + start.y, end.x - start.x).normalize();
 
-                if intersection.is_some() {
-                    return false;
+                let radius = 4.0;
+
+                let offset_lines = [
+                    (start + line_normal * radius, end + line_normal * radius),
+                    (start - line_normal * radius, end - line_normal * radius),
+                ];
+
+                for offset_line in offset_lines.iter() {
+                    let intersection =
+                        line_intersect(prev_pos, position, offset_line.0, offset_line.1);
+
+                    if intersection.is_some() {
+                        return false;
+                    }
                 }
             }
         }
@@ -312,4 +328,23 @@ fn jumpability_test(
     }
 
     return true;
+}
+
+pub fn calculate_normals(pathfinding: &mut Pathfinding, level: &Level) {
+    for node_index in 0..pathfinding.nodes.len() {
+        let node = &pathfinding.nodes[node_index];
+
+        let mut normal = Vec2::ZERO;
+
+        for line_index in node.line_indicies.iter() {
+            let line = level.polygons[node.polygon_index].points[*line_index + 1]
+                - level.polygons[node.polygon_index].points[*line_index];
+
+            let line_normal = Vec2::new(-line.y, line.x).normalize_or_zero();
+
+            normal += line_normal;
+        }
+
+        pathfinding.nodes[node_index].normal = normal.normalize_or_zero();
+    }
 }

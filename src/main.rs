@@ -110,7 +110,11 @@ pub fn s_init(mut commands: Commands, pathfinding: ResMut<Pathfinding>) {
             has_wall_jumped: false,
             rememebered_move_dir: None,
         },
-        PlatformerAI {},
+        PlatformerAI {
+            current_target_node: None,
+            jump_from_pos: None,
+            jump_to_pos: None,
+        },
     ));
 }
 
@@ -283,7 +287,43 @@ pub fn s_render(
     );
 
     // Draw the platformer AI
-    for (transform, physics, _platformer_ai) in platformer_ai_query.iter() {
+    for (transform, physics, platformer_ai) in platformer_ai_query.iter() {
         gizmos.circle_2d(transform.translation.xy(), physics.radius, Color::RED);
+
+        if gizmos_visible.visible
+            && platformer_ai.jump_from_pos.is_some()
+            && platformer_ai.jump_to_pos.is_some()
+        {
+            let jump_from_node = platformer_ai.jump_from_pos.unwrap();
+            let jump_to_node = platformer_ai.jump_to_pos.unwrap();
+
+            let delta_p = jump_to_node - jump_from_node;
+            let acceleration = Vec2::new(0.0, -GRAVITY_STRENGTH);
+
+            let t = (4.0 * delta_p.dot(delta_p) / acceleration.dot(acceleration))
+                .sqrt()
+                .sqrt();
+
+            let launch_velocity = delta_p / t - acceleration * t / 2.0;
+
+            let timestep = t / 10 as f32;
+
+            let mut prev_pos = jump_from_node;
+
+            for i in 1..10 {
+                let t = i as f32 * timestep;
+                let position = jump_from_node + launch_velocity * t + acceleration * t * t / 2.0;
+
+                // gizmos.circle_2d(position, 5.0, color);
+
+                gizmos.line_2d(prev_pos, position, Color::RED);
+
+                prev_pos = position;
+            }
+
+            gizmos.line_2d(prev_pos, jump_to_node, Color::RED);
+
+            dbg!(physics.acceleration);
+        }
     }
 }

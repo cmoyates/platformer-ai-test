@@ -74,7 +74,7 @@ pub fn s_platformer_ai_movement(
                     // Jump
                     physics.velocity = jump_velocity;
                     physics.grounded = false;
-                    println!("Jump!!!");
+                    // println!("Jump!!!");
                 }
                 // If on a wall
                 else if physics.walled != 0 {
@@ -82,7 +82,7 @@ pub fn s_platformer_ai_movement(
                     physics.velocity = jump_velocity;
                     physics.walled = 0;
                     physics.has_wall_jumped = true;
-                    println!("Wall Jump!!!");
+                    // println!("Wall Jump!!!");
                 }
             }
         }
@@ -104,8 +104,12 @@ fn get_move_inputs(
 
     if let Some(path) = path {
         if gizmos_visible {
+            let mut prev_pos = current_position;
             for i in 0..path.len() {
                 gizmos.circle_2d(path[i].0, 5.0, Color::GREEN);
+                gizmos.line_2d(prev_pos, path[i].0, Color::GREEN);
+
+                prev_pos = path[i].0;
             }
         }
 

@@ -6,6 +6,7 @@ use bevy::{
     },
     gizmos::gizmos::Gizmos,
     math::{Vec2, Vec3Swizzles},
+    render::color::Color,
     transform::components::Transform,
 };
 
@@ -32,6 +33,12 @@ pub fn s_collision(
         let mut adjustment = Vec2::ZERO;
         let mut new_normal = Vec2::ZERO;
 
+        gizmos.line_2d(
+            transform.translation.xy(),
+            transform.translation.xy() + Vec2::new(2.0, 1.0) * 10000.0,
+            Color::RED,
+        );
+
         for polygon_index in 0..level.polygons.len() {
             let polygon = level.polygons.get(polygon_index).unwrap();
 
@@ -52,6 +59,8 @@ pub fn s_collision(
                     );
 
                     if intersection.is_some() {
+                        gizmos.circle_2d(intersection.unwrap(), 5.0, Color::RED);
+
                         intersect_counter += 1;
                     }
                 }
@@ -115,9 +124,14 @@ pub fn s_collision(
                 }
             }
 
-            let inside_polygon = intersect_counter % 2 == 1;
+            let inside_polygon = if polygon.is_container {
+                intersect_counter % 2 == 0
+            } else {
+                intersect_counter % 2 == 1
+            };
 
-            if colliding_with_polygon && inside_polygon && !polygon.is_container {
+            if colliding_with_polygon && inside_polygon {
+                println!("Clipped");
                 transform.translation = physics.prev_position.extend(0.0);
             }
         }
@@ -128,7 +142,6 @@ pub fn s_collision(
 
         // Remove the players velocity in the direction of the normal
         let velocity_adjustment = physics.velocity.dot(new_normal) * new_normal;
-
         physics.velocity -= velocity_adjustment;
 
         // Update the players position

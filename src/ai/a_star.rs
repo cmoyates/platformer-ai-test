@@ -4,7 +4,7 @@ use bevy::math::Vec2;
 
 use super::pathfinding::{Pathfinding, PathfindingGraphNode};
 
-pub fn find_path(pathfinding: &Pathfinding, start_position: Vec2) -> Option<Vec<(Vec2, usize)>> {
+pub fn find_path(pathfinding: &Pathfinding, start_position: Vec2) -> Option<Vec<PathNode>> {
     if pathfinding.goal_graph_node.is_none() {
         return None;
     }
@@ -30,13 +30,13 @@ pub fn find_path(pathfinding: &Pathfinding, start_position: Vec2) -> Option<Vec<
         let current_node = open_list.pop().unwrap();
 
         // If the current node is the goal, reconstruct the path
-        if current_node.is_goal {
-            let mut path: Vec<(Vec2, usize)> = vec![];
+        if current_node.id == goal_node.id {
+            let mut path: Vec<PathNode> = vec![];
 
             let mut current_node = current_node;
             while let Some(parent_id) = current_node.parent {
                 let parent_node = closed_list.iter().find(|n| n.id == parent_id).unwrap();
-                path.push((parent_node.position, parent_id));
+                path.push(PathNode::new(parent_id, parent_node.position));
                 current_node = parent_node.clone();
             }
 
@@ -59,9 +59,7 @@ pub fn find_path(pathfinding: &Pathfinding, start_position: Vec2) -> Option<Vec<
             let mut new_node = AStarNode::new(connected_graph_node);
 
             // If the new node is the goal, set the is_goal flag
-            if new_node.id == goal_node.id {
-                new_node.is_goal = true;
-            } else {
+            if new_node.id != goal_node.id {
                 // Set the g-cost to the distance to the start node
                 new_node.g_cost =
                     (current_node.position - new_node.position).length() + current_node.g_cost;
@@ -86,7 +84,10 @@ fn get_start_node(pathfinding: &Pathfinding, start_position: Vec2) -> AStarNode 
         line_indicies: vec![],
         walkable_connections: vec![],
         jumpable_connections: vec![],
+        droppable_connections: vec![],
         normal: Vec2::ZERO,
+        is_corner: false,
+        is_external_corner: None,
     };
     let mut start_graph_node_index = f32::MAX;
 
@@ -115,7 +116,8 @@ pub struct AStarNode {
     pub g_cost: f32,
     pub h_cost: f32,
     pub parent: Option<usize>,
-    pub is_goal: bool,
+    pub is_corner: bool,
+    pub is_external_corner: Option<bool>,
 }
 
 impl AStarNode {
@@ -133,7 +135,8 @@ impl AStarNode {
             g_cost: 0.0,
             h_cost: 0.0,
             parent: None,
-            is_goal: false,
+            is_corner: graph_node.is_corner,
+            is_external_corner: graph_node.is_external_corner,
         }
     }
 
@@ -162,5 +165,16 @@ impl PartialOrd for AStarNode {
 impl PartialEq for AStarNode {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
+    }
+}
+
+pub struct PathNode {
+    pub id: usize,
+    pub position: Vec2,
+}
+
+impl PathNode {
+    pub fn new(id: usize, position: Vec2) -> PathNode {
+        PathNode { id, position }
     }
 }

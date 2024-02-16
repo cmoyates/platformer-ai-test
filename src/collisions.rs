@@ -86,7 +86,6 @@ pub fn s_collision(
                             physics.walled = normal_dir.x.signum() as i8;
                             physics.has_wall_jumped = false;
                             physics.grounded = false;
-                            physics.rememebered_move_dir = None;
                             platformer_ai.jump_from_pos = None;
                             platformer_ai.jump_to_pos = None;
                         }
@@ -95,7 +94,6 @@ pub fn s_collision(
                             physics.grounded = true;
                             physics.walled = 0;
                             physics.has_wall_jumped = false;
-                            physics.rememebered_move_dir = None;
                             platformer_ai.jump_from_pos = None;
                             platformer_ai.jump_to_pos = None;
                         }

@@ -33,6 +33,10 @@ pub fn init_pathfinding_graph(level: &Level, mut pathfinding: ResMut<Pathfinding
     make_jumpable_connections(&mut pathfinding, level);
 
     calculate_normals(&mut pathfinding, level);
+
+    setup_corners(&mut pathfinding);
+
+    // make_droppable_connections(&mut pathfinding, level);
 }
 
 #[derive(Debug, Clone)]
@@ -43,7 +47,10 @@ pub struct PathfindingGraphNode {
     pub line_indicies: Vec<usize>,
     pub walkable_connections: Vec<usize>,
     pub jumpable_connections: Vec<usize>,
+    pub droppable_connections: Vec<usize>,
     pub normal: Vec2,
+    pub is_corner: bool,
+    pub is_external_corner: Option<bool>,
 }
 
 #[derive(Resource)]
@@ -92,7 +99,10 @@ pub fn place_nodes(pathfinding: &mut Pathfinding, level: &Level) {
                         line_indicies: vec![(line_index - 1)],
                         walkable_connections: Vec::new(),
                         jumpable_connections: Vec::new(),
+                        droppable_connections: Vec::new(),
                         normal: Vec2::ZERO,
+                        is_corner: false,
+                        is_external_corner: None,
                     };
 
                     if j > 0 {
@@ -110,7 +120,10 @@ pub fn place_nodes(pathfinding: &mut Pathfinding, level: &Level) {
                     line_indicies: vec![(line_index - 1)],
                     walkable_connections: vec![pathfinding.nodes.len() - 1],
                     jumpable_connections: Vec::new(),
+                    droppable_connections: Vec::new(),
                     normal: Vec2::ZERO,
+                    is_corner: false,
+                    is_external_corner: None,
                 };
 
                 pathfinding.nodes.push(new_node);
@@ -269,7 +282,7 @@ fn jumpability_test(
 
     let delta_p = goal_pos - start_pos;
     let acceleration = Vec2::new(0.0, -GRAVITY_STRENGTH);
-    let v_max = PLATFORMER_AI_JUMP_FORCE - 1.0;
+    let v_max = PLATFORMER_AI_JUMP_FORCE;
     let b1 = delta_p.dot(acceleration) + v_max * v_max;
     let discriminant = b1 * b1 - acceleration.dot(acceleration) * delta_p.dot(delta_p);
 
@@ -348,3 +361,59 @@ pub fn calculate_normals(pathfinding: &mut Pathfinding, level: &Level) {
         pathfinding.nodes[node_index].normal = normal.normalize_or_zero();
     }
 }
+
+pub fn setup_corners(pathfinding: &mut Pathfinding) {
+    for node_index in 0..pathfinding.nodes.len() {
+        // let node = &mut pathfinding.nodes[node_index];
+
+        pathfinding.nodes[node_index].is_corner =
+            pathfinding.nodes[node_index].line_indicies.len() > 1;
+
+        if pathfinding.nodes[node_index].is_corner {
+            let mut line_dir = Vec2::ZERO;
+
+            for point_index in pathfinding.nodes[node_index].walkable_connections.iter() {
+                let line = pathfinding.nodes[*point_index].position
+                    - pathfinding.nodes[node_index].position;
+                line_dir += line;
+            }
+
+            pathfinding.nodes[node_index].is_external_corner =
+                Some(line_dir.dot(pathfinding.nodes[node_index].normal) < 0.0);
+        }
+    }
+}
+
+// pub fn make_droppable_connections(pathfinding: &mut Pathfinding, level: &Level) {
+//     // For each node
+
+//     for i in 0..pathfinding.nodes.len() {
+//         let node = &pathfinding.nodes[i];
+
+//         if node.normal.y > 0.1 {
+//             continue;
+//         }
+
+//         let mut droppable_connections: Vec<usize> = Vec::new();
+
+//         // Boxcast down
+
+//         // // For each line in the level
+//         // for polygon_index in 0..level.polygons.len() {
+//         //     let polygon = &level.polygons[polygon_index];
+
+//         //     for line_index in 1..polygon.points.len() {
+//         //         let start = polygon.points[line_index - 1];
+//         //         let end = polygon.points[line_index];
+
+//         //         // If the boxcast hits a node below, add it to the droppable connections
+//         //     }
+//         // }
+
+//         // If the boxcast hits a node below, add it to the droppable connections
+//     }
+
+//     // Boxcast down
+
+//     // If the boxcast hits a node below, add it to the droppable connections
+// }

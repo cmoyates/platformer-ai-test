@@ -76,7 +76,6 @@ pub struct Physics {
     pub grounded: bool,
     pub walled: i8,
     pub has_wall_jumped: bool,
-    pub rememebered_move_dir: Option<Vec2>,
 }
 
 pub fn s_init(mut commands: Commands, pathfinding: ResMut<Pathfinding>) {
@@ -108,7 +107,6 @@ pub fn s_init(mut commands: Commands, pathfinding: ResMut<Pathfinding>) {
             grounded: false,
             walled: 0,
             has_wall_jumped: false,
-            rememebered_move_dir: None,
         },
         PlatformerAI {
             current_target_node: None,
@@ -322,8 +320,6 @@ pub fn s_render(
             }
 
             gizmos.line_2d(prev_pos, jump_to_node, Color::RED);
-
-            dbg!(physics.acceleration);
         }
     }
 }

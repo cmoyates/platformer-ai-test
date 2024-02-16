@@ -61,8 +61,7 @@ pub fn find_path(pathfinding: &Pathfinding, start_position: Vec2) -> Option<Vec<
             // If the new node is the goal, set the is_goal flag
             if new_node.id != goal_node.id {
                 // Set the g-cost to the distance to the start node
-                new_node.g_cost =
-                    (current_node.position - new_node.position).length() + current_node.g_cost;
+                new_node.g_cost = connection.dist + current_node.g_cost;
 
                 // Set the h-cost to the distance to the goal
                 new_node.h_cost = (pathfinding.goal_position - new_node.position).length();

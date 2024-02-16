@@ -40,8 +40,18 @@ pub fn init_pathfinding_graph(level: &Level, mut pathfinding: ResMut<Pathfinding
 }
 
 #[derive(Debug, Clone)]
+pub enum PathfindingGraphConnectionType {
+    Walkable,
+    Jumpable,
+    Droppable,
+}
+
+#[derive(Debug, Clone)]
 pub struct PathfindingGraphConnection {
     pub node_id: usize,
+    pub dist: f32,
+    pub connection_type: PathfindingGraphConnectionType,
+    pub effort: f32,
 }
 
 #[derive(Debug, Clone)]
@@ -115,6 +125,9 @@ pub fn place_nodes(pathfinding: &mut Pathfinding, level: &Level) {
                             .walkable_connections
                             .push(PathfindingGraphConnection {
                                 node_id: pathfinding.nodes.len() - 1,
+                                dist: dist_between_nodes_on_line,
+                                connection_type: PathfindingGraphConnectionType::Walkable,
+                                effort: 0.0,
                             });
                     }
 
@@ -127,6 +140,9 @@ pub fn place_nodes(pathfinding: &mut Pathfinding, level: &Level) {
                     line_indicies: vec![(line_index - 1)],
                     walkable_connections: vec![PathfindingGraphConnection {
                         node_id: pathfinding.nodes.len() - 1,
+                        dist: dist_between_nodes_on_line,
+                        connection_type: PathfindingGraphConnectionType::Walkable,
+                        effort: 0.0,
                     }],
                     jumpable_connections: Vec::new(),
                     droppable_connections: Vec::new(),
@@ -154,6 +170,9 @@ pub fn make_walkable_connections_2_way(pathfinding: &mut Pathfinding) {
                 .walkable_connections
                 .push(PathfindingGraphConnection {
                     node_id: node_index,
+                    dist: connection.dist,
+                    connection_type: PathfindingGraphConnectionType::Walkable,
+                    effort: 0.0,
                 });
         }
     }
@@ -270,14 +289,21 @@ pub fn make_jumpable_connections(pathfinding: &mut Pathfinding, level: &Level) {
                     if intersection.is_some() {
                         continue 'other_nodes;
                     }
-
-                    if !jumpability_test(main_node, other_node, level) {
-                        continue 'other_nodes;
-                    }
                 }
             }
 
-            jumpable_connections.push(PathfindingGraphConnection { node_id: j });
+            let jumpable_velocity = jumpability_test(main_node, other_node, level);
+
+            if jumpable_velocity.is_none() {
+                continue 'other_nodes;
+            }
+
+            jumpable_connections.push(PathfindingGraphConnection {
+                node_id: j,
+                dist: (main_node.position - other_node.position).length(),
+                connection_type: PathfindingGraphConnectionType::Jumpable,
+                effort: jumpable_velocity.unwrap(),
+            });
         }
 
         pathfinding.nodes[i].jumpable_connections = jumpable_connections;
@@ -288,7 +314,7 @@ fn jumpability_test(
     main_node: &PathfindingGraphNode,
     other_node: &PathfindingGraphNode,
     level: &Level,
-) -> bool {
+) -> Option<f32> {
     let start_pos = main_node.position;
     let goal_pos = other_node.position;
 
@@ -299,7 +325,7 @@ fn jumpability_test(
     let discriminant = b1 * b1 - acceleration.dot(acceleration) * delta_p.dot(delta_p);
 
     if discriminant < 0.0 {
-        return false;
+        return None;
     }
 
     let t_low_energy = (4.0 * delta_p.dot(delta_p) / acceleration.dot(acceleration))
@@ -343,7 +369,7 @@ fn jumpability_test(
                         line_intersect(prev_pos, position, offset_line.0, offset_line.1);
 
                     if intersection.is_some() {
-                        return false;
+                        return None;
                     }
                 }
             }
@@ -352,7 +378,7 @@ fn jumpability_test(
         prev_pos = position;
     }
 
-    return true;
+    return Some(launch_velocity.length());
 }
 
 pub fn calculate_normals(pathfinding: &mut Pathfinding, level: &Level) {

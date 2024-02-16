@@ -2,7 +2,7 @@ use std::{cmp::Ordering, collections::BinaryHeap};
 
 use bevy::math::Vec2;
 
-use super::pathfinding::{Pathfinding, PathfindingGraphNode};
+use super::pathfinding::{Pathfinding, PathfindingGraphConnection, PathfindingGraphNode};
 
 pub fn find_path(pathfinding: &Pathfinding, start_position: Vec2) -> Option<Vec<PathNode>> {
     if pathfinding.goal_graph_node.is_none() {
@@ -54,8 +54,8 @@ pub fn find_path(pathfinding: &Pathfinding, start_position: Vec2) -> Option<Vec<
         closed_list.push(current_node.clone());
 
         // For each connection of the current node
-        for connection_id in current_node.connections.iter() {
-            let connected_graph_node = &pathfinding.nodes[*connection_id];
+        for connection in current_node.connections.iter() {
+            let connected_graph_node = &pathfinding.nodes[connection.node_id];
             let mut new_node = AStarNode::new(connected_graph_node);
 
             // If the new node is the goal, set the is_goal flag
@@ -112,7 +112,7 @@ fn get_start_node(pathfinding: &Pathfinding, start_position: Vec2) -> AStarNode 
 pub struct AStarNode {
     pub position: Vec2,
     pub id: usize,
-    pub connections: Vec<usize>,
+    pub connections: Vec<PathfindingGraphConnection>,
     pub g_cost: f32,
     pub h_cost: f32,
     pub parent: Option<usize>,

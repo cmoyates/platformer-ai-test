@@ -168,7 +168,8 @@ fn get_move_inputs(
 
             let is_jumpable_connection = pathfinding.nodes[path[0].id]
                 .jumpable_connections
-                .contains(&path[1].id);
+                .iter()
+                .any(|jumpable_connection| jumpable_connection.node_id == path[1].id);
 
             let falling = agent_physics.normal.length_squared() <= 0.0;
 

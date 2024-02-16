@@ -24,7 +24,7 @@ impl Plugin for PathfindingPlugin {
 pub fn init_pathfinding_graph(level: &Level, mut pathfinding: ResMut<Pathfinding>) {
     place_nodes(&mut pathfinding, level);
 
-    make_node_connections_2_way(&mut pathfinding);
+    make_walkable_connections_2_way(&mut pathfinding);
 
     remove_duplicate_nodes(&mut pathfinding);
 
@@ -40,14 +40,19 @@ pub fn init_pathfinding_graph(level: &Level, mut pathfinding: ResMut<Pathfinding
 }
 
 #[derive(Debug, Clone)]
+pub struct PathfindingGraphConnection {
+    pub node_id: usize,
+}
+
+#[derive(Debug, Clone)]
 pub struct PathfindingGraphNode {
     pub id: usize,
     pub position: Vec2,
     pub polygon_index: usize,
     pub line_indicies: Vec<usize>,
-    pub walkable_connections: Vec<usize>,
-    pub jumpable_connections: Vec<usize>,
-    pub droppable_connections: Vec<usize>,
+    pub walkable_connections: Vec<PathfindingGraphConnection>,
+    pub jumpable_connections: Vec<PathfindingGraphConnection>,
+    pub droppable_connections: Vec<PathfindingGraphConnection>,
     pub normal: Vec2,
     pub is_corner: bool,
     pub is_external_corner: Option<bool>,
@@ -108,7 +113,9 @@ pub fn place_nodes(pathfinding: &mut Pathfinding, level: &Level) {
                     if j > 0 {
                         new_node
                             .walkable_connections
-                            .push(pathfinding.nodes.len() - 1);
+                            .push(PathfindingGraphConnection {
+                                node_id: pathfinding.nodes.len() - 1,
+                            });
                     }
 
                     pathfinding.nodes.push(new_node);
@@ -118,7 +125,9 @@ pub fn place_nodes(pathfinding: &mut Pathfinding, level: &Level) {
                     position: end,
                     polygon_index: polygon_index,
                     line_indicies: vec![(line_index - 1)],
-                    walkable_connections: vec![pathfinding.nodes.len() - 1],
+                    walkable_connections: vec![PathfindingGraphConnection {
+                        node_id: pathfinding.nodes.len() - 1,
+                    }],
                     jumpable_connections: Vec::new(),
                     droppable_connections: Vec::new(),
                     normal: Vec2::ZERO,
@@ -133,17 +142,19 @@ pub fn place_nodes(pathfinding: &mut Pathfinding, level: &Level) {
 }
 
 /// Makes all of the connections between nodes 2-way
-pub fn make_node_connections_2_way(pathfinding: &mut Pathfinding) {
+pub fn make_walkable_connections_2_way(pathfinding: &mut Pathfinding) {
     for node_index in 0..pathfinding.nodes.len() {
         // Make a clone of the current node to appease the borrow checker
         let node = pathfinding.nodes[node_index].clone();
 
         // For each connection of the current node
-        for other_node_index in node.walkable_connections.iter() {
+        for connection in node.walkable_connections.iter() {
             // Add the current node to the connections of the other node
-            pathfinding.nodes[*other_node_index]
+            pathfinding.nodes[connection.node_id]
                 .walkable_connections
-                .push(node_index);
+                .push(PathfindingGraphConnection {
+                    node_id: node_index,
+                });
         }
     }
 }
@@ -179,8 +190,8 @@ pub fn remove_duplicate_nodes(pathfinding: &mut Pathfinding) {
                 // Update the connections of the nodes that were connected to the second node
                 for node in &mut pathfinding.nodes {
                     for connection in &mut node.walkable_connections {
-                        if *connection == second_node_id {
-                            *connection = first_node_id;
+                        if connection.node_id == second_node_id {
+                            connection.node_id = first_node_id;
                         }
                     }
                 }
@@ -204,16 +215,17 @@ pub fn make_node_ids_indices(pathfinding: &mut Pathfinding) {
                 .iter()
                 .find(|n| {
                     n.id == pathfinding.nodes[node_index].walkable_connections[connection_index]
+                        .node_id
                 })
                 .unwrap();
 
-            let connected_node_index = pathfinding_nodes_copy
+            let connected_node_id = pathfinding_nodes_copy
                 .iter()
                 .position(|n| n.id == connected_node.id)
                 .unwrap();
 
-            pathfinding.nodes[node_index].walkable_connections[connection_index] =
-                connected_node_index;
+            pathfinding.nodes[node_index].walkable_connections[connection_index].node_id =
+                connected_node_id;
         }
     }
 }
@@ -222,7 +234,7 @@ pub fn make_jumpable_connections(pathfinding: &mut Pathfinding, level: &Level) {
     for i in 0..pathfinding.nodes.len() {
         let main_node = &pathfinding.nodes[i];
 
-        let mut jumpable_connections: Vec<usize> = Vec::new();
+        let mut jumpable_connections: Vec<PathfindingGraphConnection> = Vec::new();
 
         'other_nodes: for j in 0..pathfinding.nodes.len() {
             // Make sure we're not comparing the same node
@@ -265,7 +277,7 @@ pub fn make_jumpable_connections(pathfinding: &mut Pathfinding, level: &Level) {
                 }
             }
 
-            jumpable_connections.push(j);
+            jumpable_connections.push(PathfindingGraphConnection { node_id: j });
         }
 
         pathfinding.nodes[i].jumpable_connections = jumpable_connections;
@@ -372,8 +384,8 @@ pub fn setup_corners(pathfinding: &mut Pathfinding) {
         if pathfinding.nodes[node_index].is_corner {
             let mut line_dir = Vec2::ZERO;
 
-            for point_index in pathfinding.nodes[node_index].walkable_connections.iter() {
-                let line = pathfinding.nodes[*point_index].position
+            for connection in pathfinding.nodes[node_index].walkable_connections.iter() {
+                let line = pathfinding.nodes[connection.node_id].position
                     - pathfinding.nodes[node_index].position;
                 line_dir += line;
             }

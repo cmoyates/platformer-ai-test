@@ -256,8 +256,8 @@ pub fn s_render(
 
         // Draw the pathfinding connections
         for node in &pathfinding.nodes {
-            for connection_id in &node.jumpable_connections {
-                let connected_node = &pathfinding.nodes[*connection_id];
+            for connection in &node.jumpable_connections {
+                let connected_node = &pathfinding.nodes[connection.node_id];
 
                 gizmos.line_2d(
                     node.position,

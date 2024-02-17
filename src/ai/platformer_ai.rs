@@ -184,10 +184,6 @@ fn get_move_inputs(
                             let agent_position_next_frame = agent_position + agent_physics.velocity;
 
                             if agent_on_wall {
-                                // // If the agent will be on the other side of the corner next frame
-                                // (agent_position.y + agent_physics.velocity.y - path[0].position.y)
-                                //     .signum()
-                                //     != (agent_position.y - path[0].position.y).signum()
                                 path_following_strategy =
                                     PathFollowingStrategy::AgentToNextNodeOffset;
                             } else {
@@ -240,20 +236,6 @@ fn get_move_inputs(
                     path_following_strategy = PathFollowingStrategy::AgentToCurrentNodeOffset;
                 }
             }
-
-            // let target_pos = if targeting_next_node {
-            //     offset_next_node
-            // } else {
-            //     offset_current_node
-            // };
-
-            // if gizmos_visible {
-            //     gizmos.circle_2d(offset_current_node, 5.0, Color::BLUE);
-            //     gizmos.circle_2d(offset_next_node, 5.0, Color::BLUE);
-            //     gizmos.circle_2d(target_pos, 8.0, Color::PURPLE);
-            // }
-
-            // move_dir = (target_pos - agent_position).normalize_or_zero();
 
             move_dir = match path_following_strategy {
                 PathFollowingStrategy::CurrentNodeToNextNode => path[1].position - path[0].position,

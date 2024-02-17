@@ -157,10 +157,17 @@ impl AStarNode {
 
 impl Ord for AStarNode {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.get_f_cost()
-            .partial_cmp(&other.get_f_cost())
-            .unwrap_or(Ordering::Equal)
-            .reverse()
+        let self_f_cost = self.get_f_cost();
+        let other_f_cost = other.get_f_cost();
+
+        match self_f_cost.partial_cmp(&other_f_cost) {
+            Some(Ordering::Equal) => self
+                .h_cost
+                .partial_cmp(&other.h_cost)
+                .unwrap_or(Ordering::Equal),
+            Some(order) => order.reverse(),
+            None => Ordering::Equal,
+        }
     }
 }
 

@@ -18,7 +18,6 @@ use super::{a_star::find_path, pathfinding::Pathfinding};
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PathFollowingStrategy {
     CurrentNodeToNextNode,
-    NextNodeToNodeAfterNext,
     CurrentNodeOffsetToNextNodeOffset,
     AgentToCurrentNode,
     AgentToCurrentNodeOffset,
@@ -230,35 +229,15 @@ fn get_move_inputs(
             }
             // Normal path following
             else {
-                let internal_corner_stuck = {
-                    if path.len() > 2 {
-                        let dist_sq_to_path_0 =
-                            (agent_position - path[0].position).length_squared();
-                        let dist_sq_to_path_1 =
-                            (agent_position - path[1].position).length_squared();
-                        let dist_sq_to_path_2 =
-                            (agent_position - path[2].position).length_squared();
-
-                        dist_sq_to_path_0 == dist_sq_to_path_1
-                            && dist_sq_to_path_0 == dist_sq_to_path_2
-                    } else {
-                        false
-                    }
-                };
-
                 let current_pos_to_next_offset = offset_next_node - agent_position;
                 let current_offset_to_next_offset = offset_next_node - offset_current_node;
 
-                if internal_corner_stuck {
-                    path_following_strategy = PathFollowingStrategy::NextNodeToNodeAfterNext;
+                if current_pos_to_next_offset.length_squared()
+                    <= current_offset_to_next_offset.length_squared()
+                {
+                    path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
                 } else {
-                    if current_pos_to_next_offset.length_squared()
-                        <= current_offset_to_next_offset.length_squared()
-                    {
-                        path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
-                    } else {
-                        path_following_strategy = PathFollowingStrategy::AgentToCurrentNodeOffset;
-                    }
+                    path_following_strategy = PathFollowingStrategy::AgentToCurrentNodeOffset;
                 }
             }
 
@@ -278,13 +257,6 @@ fn get_move_inputs(
 
             move_dir = match path_following_strategy {
                 PathFollowingStrategy::CurrentNodeToNextNode => path[1].position - path[0].position,
-                PathFollowingStrategy::NextNodeToNodeAfterNext => {
-                    if path.len() > 2 {
-                        path[2].position - path[1].position
-                    } else {
-                        Vec2::ZERO
-                    }
-                }
                 PathFollowingStrategy::CurrentNodeOffsetToNextNodeOffset => {
                     offset_next_node - offset_current_node
                 }

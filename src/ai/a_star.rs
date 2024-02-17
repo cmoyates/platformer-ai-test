@@ -88,15 +88,26 @@ fn get_start_node(pathfinding: &Pathfinding, start_position: Vec2) -> AStarNode 
         is_corner: false,
         is_external_corner: None,
     };
-    let mut start_graph_node_index = f32::MAX;
+    let mut start_graph_node_distance = f32::MAX;
 
     for node in pathfinding.nodes.iter() {
         let distance = (start_position - node.position).length_squared();
 
-        if distance < start_graph_node_index {
-            start_graph_node_index = distance;
-            start_graph_node = node.clone();
+        if distance > start_graph_node_distance {
+            continue;
         }
+
+        if distance == start_graph_node_distance {
+            let start_node_to_goal = (pathfinding.goal_position - start_position).length_squared();
+            let current_node_to_goal = (pathfinding.goal_position - node.position).length_squared();
+
+            if current_node_to_goal > start_node_to_goal {
+                continue;
+            }
+        }
+
+        start_graph_node_distance = distance;
+        start_graph_node = node.clone();
     }
 
     let mut start_a_star_node = AStarNode::new(&start_graph_node);

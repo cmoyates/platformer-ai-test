@@ -13,8 +13,9 @@ use bevy::{
     window::{PresentMode, PrimaryWindow},
 };
 use collisions::{s_collision, CollisionPlugin};
-use level::{generate_level_polygons, Polygon};
+use level::{generate_level_polygons, Level, Polygon};
 use pathfinding::{init_pathfinding_graph, Pathfinding, PathfindingPlugin};
+use utils::line_intersect;
 
 pub const GRAVITY_STRENGTH: f32 = 0.5;
 
@@ -46,14 +47,6 @@ fn main() {
         .add_systems(Update, s_move_goal_point.after(s_input))
         .add_systems(Update, s_render.after(s_collision))
         .run();
-}
-
-#[derive(Resource)]
-pub struct Level {
-    pub polygons: Vec<Polygon>,
-    pub grid_size: f32,
-    pub size: Vec2,
-    pub half_size: Vec2,
 }
 
 #[derive(Resource)]

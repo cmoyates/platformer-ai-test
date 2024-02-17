@@ -4,7 +4,7 @@ use bevy::{
     math::Vec2,
 };
 
-use crate::{utils::line_intersect, Level, GRAVITY_STRENGTH};
+use crate::{level::Level, utils::line_intersect, GRAVITY_STRENGTH};
 
 use super::platformer_ai::PLATFORMER_AI_JUMP_FORCE;
 
@@ -346,8 +346,10 @@ fn jumpability_test(
             let polygon = &level.polygons[polygon_index];
 
             'polygon_lines: for line_index in 1..polygon.points.len() {
-                if main_node.polygon_index == polygon_index
-                    && main_node.line_indicies.contains(&(line_index - 1))
+                if (main_node.polygon_index == polygon_index
+                    && main_node.line_indicies.contains(&(line_index - 1)))
+                    || (other_node.polygon_index == polygon_index
+                        && other_node.line_indicies.contains(&(line_index - 1)))
                 {
                     continue 'polygon_lines;
                 }

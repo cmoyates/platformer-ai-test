@@ -1,4 +1,4 @@
-use bevy::{math::Vec2, render::color::Color};
+use bevy::{ecs::system::Resource, math::Vec2, render::color::Color};
 use rand::Rng;
 
 use crate::utils::line_intersect;
@@ -9,7 +9,47 @@ pub struct Polygon {
     pub is_container: bool,
 }
 
-const LEVEL_DATA: &'static [u8] = include_bytes!("../assets/level.json");
+#[derive(Resource)]
+pub struct Level {
+    pub polygons: Vec<Polygon>,
+    pub grid_size: f32,
+    pub size: Vec2,
+    pub half_size: Vec2,
+}
+
+impl Level {
+    pub fn get_polygon(&self, index: usize) -> Option<&Polygon> {
+        self.polygons.get(index)
+    }
+
+    pub fn get_line(&self, polygon_index: usize, line_index: usize) -> Option<(&Vec2, &Vec2)> {
+        let polygon = self.get_polygon(polygon_index)?;
+
+        let start = polygon.points.get(line_index)?;
+        let end = polygon.points.get(line_index + 1)?;
+
+        Some((start, end))
+    }
+
+    pub fn line_of_sight_check(&self, start: Vec2, end: Vec2) -> bool {
+        for polygon in &self.polygons {
+            for i in 1..polygon.points.len() {
+                let start = polygon.points[i - 1];
+                let end = polygon.points[i];
+
+                let intersection = line_intersect(start, end, start, end);
+
+                if intersection.is_some() {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+}
+
+const LEVEL_DATA: &'static [u8] = include_bytes!("../../assets/level.json");
 
 pub fn generate_level_polygons(grid_size: f32) -> (Vec<Polygon>, Vec2, Vec2) {
     let mut rng = rand::thread_rng();

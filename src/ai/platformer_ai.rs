@@ -184,6 +184,7 @@ fn get_move_inputs(
                             let agent_position_next_frame = agent_position + agent_physics.velocity;
 
                             if agent_on_wall {
+                                println!("Test 1");
                                 path_following_strategy =
                                     PathFollowingStrategy::AgentToNextNodeOffset;
                             } else {
@@ -201,25 +202,30 @@ fn get_move_inputs(
 
                                 path_following_strategy =
                                     if agent_on_other_side_next_frame || agent_not_moving {
+                                        println!("Test 2");
                                         PathFollowingStrategy::AgentToNextNodeOffset
                                     } else {
+                                        println!("Test 3");
                                         PathFollowingStrategy::AgentToCurrentNodeOffset
                                     };
                             }
                         }
                         // Walkable connection
                         else {
+                            println!("Test 4");
                             path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
                         }
                     }
                     // Internal corner
                     else {
                         // println!("Internal corner");
+                        println!("Test 5");
                         path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
                     }
                 }
                 // If the agent is falling
                 else {
+                    println!("Test 6");
                     path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
                 }
             }
@@ -231,8 +237,10 @@ fn get_move_inputs(
                 if current_pos_to_next_offset.length_squared()
                     <= current_offset_to_next_offset.length_squared()
                 {
+                    println!("Test 7");
                     path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
                 } else {
+                    println!("Test 8");
                     path_following_strategy = PathFollowingStrategy::AgentToCurrentNodeOffset;
                 }
             }

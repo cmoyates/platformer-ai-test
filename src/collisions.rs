@@ -11,8 +11,9 @@ use bevy::{
 
 use crate::{
     ai::platformer_ai::{s_platformer_ai_movement, PlatformerAI},
+    level::Level,
     utils::{line_intersect, side_of_line_detection},
-    Level, Physics,
+    Physics,
 };
 
 pub struct CollisionPlugin;

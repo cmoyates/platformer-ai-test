@@ -6,7 +6,7 @@ The behavior is supposed to resemble that of the lizards from [Rain World](https
 
 ## TODO
 
-- [ ] Implement [platformer pathfinding](https://www.youtube.com/watch?v=kNI2I8kzpnE&t=123s)
+- [x] Implement [platformer pathfinding](https://www.youtube.com/watch?v=kNI2I8kzpnE&t=123s)
 
   - [x] Contruct node graph
 

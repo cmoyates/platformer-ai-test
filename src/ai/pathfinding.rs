@@ -6,7 +6,7 @@ use bevy::{
 
 use crate::{level::Level, utils::line_intersect, GRAVITY_STRENGTH};
 
-use super::platformer_ai::PLATFORMER_AI_JUMP_FORCE;
+use super::platformer_ai::{PLATFORMER_AI_AGENT_RADIUS, PLATFORMER_AI_JUMP_FORCE};
 
 pub struct PathfindingPlugin;
 
@@ -30,7 +30,7 @@ pub fn init_pathfinding_graph(level: &Level, mut pathfinding: ResMut<Pathfinding
 
     make_node_ids_indices(&mut pathfinding);
 
-    make_jumpable_connections(&mut pathfinding, level);
+    make_jumpable_connections(&mut pathfinding, level, PLATFORMER_AI_AGENT_RADIUS);
 
     calculate_normals(&mut pathfinding, level);
 
@@ -249,7 +249,7 @@ pub fn make_node_ids_indices(pathfinding: &mut Pathfinding) {
     }
 }
 
-pub fn make_jumpable_connections(pathfinding: &mut Pathfinding, level: &Level) {
+pub fn make_jumpable_connections(pathfinding: &mut Pathfinding, level: &Level, radius: f32) {
     for i in 0..pathfinding.nodes.len() {
         let main_node = &pathfinding.nodes[i];
 
@@ -292,7 +292,7 @@ pub fn make_jumpable_connections(pathfinding: &mut Pathfinding, level: &Level) {
                 }
             }
 
-            let jumpable_velocity = jumpability_test(main_node, other_node, level);
+            let jumpable_velocity = jumpability_check(main_node, other_node, level, radius);
 
             if jumpable_velocity.is_none() {
                 continue 'other_nodes;
@@ -310,13 +310,17 @@ pub fn make_jumpable_connections(pathfinding: &mut Pathfinding, level: &Level) {
     }
 }
 
-fn jumpability_test(
-    main_node: &PathfindingGraphNode,
-    other_node: &PathfindingGraphNode,
+pub fn jumpability_check(
+    start_graph_node: &PathfindingGraphNode,
+    goal_graph_node: &PathfindingGraphNode,
     level: &Level,
+    radius: f32,
 ) -> Option<f32> {
-    let start_pos = main_node.position;
-    let goal_pos = other_node.position;
+    let start_node = start_graph_node;
+    let start_pos = start_node.position;
+
+    let goal_node = goal_graph_node;
+    let goal_pos = goal_node.position;
 
     let delta_p = goal_pos - start_pos;
     let acceleration = Vec2::new(0.0, -GRAVITY_STRENGTH);
@@ -324,9 +328,7 @@ fn jumpability_test(
     let b1 = delta_p.dot(acceleration) + v_max * v_max;
     let discriminant = b1 * b1 - acceleration.dot(acceleration) * delta_p.dot(delta_p);
 
-    if discriminant < 0.0 {
-        return None;
-    }
+    let mut jump_possible = discriminant >= 0.0;
 
     let t_low_energy = (4.0 * delta_p.dot(delta_p) / acceleration.dot(acceleration))
         .sqrt()
@@ -334,53 +336,105 @@ fn jumpability_test(
     let launch_velocity = delta_p / t_low_energy - acceleration * t_low_energy / 2.0;
     let timestep = t_low_energy / 10 as f32;
 
-    let mut prev_pos = start_pos;
-
-    for i in 1..10 {
-        let current_jump_time = i as f32 * timestep;
-        let position = start_pos
-            + launch_velocity * current_jump_time
-            + acceleration * current_jump_time * current_jump_time / 2.0;
-
-        for polygon_index in 0..level.polygons.len() {
+    if jump_possible {
+        'polygon: for polygon_index in 0..level.polygons.len() {
             let polygon = &level.polygons[polygon_index];
+            'line: for line_index in 1..polygon.points.len() {
+                let start_node_on_line = start_node.polygon_index == polygon_index
+                    && start_node.line_indicies.contains(&(line_index - 1));
+                let goal_node_on_line = goal_node.polygon_index == polygon_index
+                    && goal_node.line_indicies.contains(&(line_index - 1));
 
-            'polygon_lines: for line_index in 1..polygon.points.len() {
-                if (main_node.polygon_index == polygon_index
-                    && main_node.line_indicies.contains(&(line_index - 1)))
-                    || (other_node.polygon_index == polygon_index
-                        && other_node.line_indicies.contains(&(line_index - 1)))
-                {
-                    continue 'polygon_lines;
+                if start_node_on_line || goal_node_on_line {
+                    continue 'line;
                 }
 
-                let start = polygon.points[line_index - 1];
-                let end = polygon.points[line_index];
+                let line_start = polygon.points[line_index - 1];
+                let line_end = polygon.points[line_index];
 
-                let line_normal = Vec2::new(-end.y + start.y, end.x - start.x).normalize();
+                let mut prev_pos = start_pos;
 
-                let radius = 4.0;
+                for i in 1..10 {
+                    let t = timestep * i as f32;
+                    let pos = start_pos + launch_velocity * t + acceleration * t * t / 2.0;
 
-                let offset_lines = [
-                    (start + line_normal * radius, end + line_normal * radius),
-                    (start - line_normal * radius, end - line_normal * radius),
-                ];
+                    let line_dir = (pos - prev_pos).normalize();
 
-                for offset_line in offset_lines.iter() {
-                    let intersection =
-                        line_intersect(prev_pos, position, offset_line.0, offset_line.1);
+                    let line_normal = Vec2::new(-line_dir.y, line_dir.x);
 
-                    if intersection.is_some() {
-                        return None;
+                    let line_beginning_offset_1 = prev_pos + line_normal * radius;
+                    let line_beginning_offset_2 = prev_pos - line_normal * radius;
+                    let line_end_offset_1 = pos + line_normal * radius;
+                    let line_end_offset_2 = pos - line_normal * radius;
+
+                    let offset_1_intersection = line_intersect(
+                        line_beginning_offset_1,
+                        line_end_offset_1,
+                        line_start,
+                        line_end,
+                    );
+
+                    if offset_1_intersection.is_some() {
+                        jump_possible = false;
+                        break 'polygon;
                     }
+
+                    let offset_2_intersection = line_intersect(
+                        line_beginning_offset_2,
+                        line_end_offset_2,
+                        line_start,
+                        line_end,
+                    );
+
+                    if offset_2_intersection.is_some() {
+                        jump_possible = false;
+                        break 'polygon;
+                    }
+
+                    prev_pos = pos;
+                }
+
+                let line_dir = (goal_pos - prev_pos).normalize();
+
+                let line_normal = Vec2::new(-line_dir.y, line_dir.x);
+
+                let line_beginning_offset_1 = prev_pos + line_normal * radius;
+                let line_beginning_offset_2 = prev_pos - line_normal * radius;
+                let line_end_offset_1 = goal_pos + line_normal * radius;
+                let line_end_offset_2 = goal_pos - line_normal * radius;
+
+                let offset_1_intersection = line_intersect(
+                    line_beginning_offset_1,
+                    line_end_offset_1,
+                    line_start,
+                    line_end,
+                );
+
+                if offset_1_intersection.is_some() {
+                    jump_possible = false;
+                    break 'polygon;
+                }
+
+                let offset_2_intersection = line_intersect(
+                    line_beginning_offset_2,
+                    line_end_offset_2,
+                    line_start,
+                    line_end,
+                );
+
+                if offset_2_intersection.is_some() {
+                    jump_possible = false;
+                    break 'polygon;
                 }
             }
         }
-
-        prev_pos = position;
     }
 
-    return Some(launch_velocity.length());
+    return if jump_possible {
+        Some(launch_velocity.length())
+    } else {
+        None
+    };
 }
 
 pub fn calculate_normals(pathfinding: &mut Pathfinding, level: &Level) {

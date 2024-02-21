@@ -27,6 +27,8 @@ pub enum PathFollowingStrategy {
     None,
 }
 
+pub const PLATFORMER_AI_AGENT_RADIUS: f32 = 8.0;
+
 const WANDER_MAX_SPEED: f32 = 3.0;
 // const PURSUE_MAX_SPEED: f32 = 5.0;
 // const ATTACK_MAX_SPEED: f32 = 7.0;

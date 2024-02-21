@@ -6,7 +6,7 @@ mod utils;
 use ::bevy::prelude::*;
 use ai::{
     pathfinding,
-    platformer_ai::{PlatformerAI, PlatformerAIPlugin},
+    platformer_ai::{PlatformerAI, PlatformerAIPlugin, PLATFORMER_AI_AGENT_RADIUS},
 };
 use bevy::{
     app::AppExit,
@@ -95,7 +95,7 @@ pub fn s_init(mut commands: Commands, pathfinding: ResMut<Pathfinding>) {
             prev_position: Vec2::ZERO,
             velocity: Vec2::ZERO,
             acceleration: Vec2::ZERO,
-            radius: 8.0,
+            radius: PLATFORMER_AI_AGENT_RADIUS,
             normal: Vec2::ZERO,
             grounded: false,
             walled: 0,

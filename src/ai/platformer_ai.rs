@@ -186,9 +186,26 @@ fn get_move_inputs(
                             let agent_position_next_frame = agent_position + agent_physics.velocity;
 
                             if agent_on_wall {
-                                println!("Test 1");
+                                let agent_side_of_corner_current =
+                                    (agent_position.y - path[0].position.y).signum();
+
+                                let agent_side_of_corner_next_frame =
+                                    (agent_position_next_frame.y - path[0].position.y).signum();
+
+                                let agent_on_other_side_next_frame =
+                                    agent_side_of_corner_current != agent_side_of_corner_next_frame;
+
+                                let agent_not_moving =
+                                    agent_physics.velocity.length_squared() < 0.1;
+
                                 path_following_strategy =
-                                    PathFollowingStrategy::AgentToNextNodeOffset;
+                                    if agent_on_other_side_next_frame || agent_not_moving {
+                                        println!("Test 2");
+                                        PathFollowingStrategy::AgentToNextNodeOffset
+                                    } else {
+                                        println!("Test 3");
+                                        PathFollowingStrategy::AgentToCurrentNodeOffset
+                                    };
                             } else {
                                 let agent_side_of_corner_current =
                                     (agent_position.x - path[0].position.x).signum();
@@ -231,19 +248,43 @@ fn get_move_inputs(
                     path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
                 }
             }
-            // Normal path following
+            // Not a corner
             else {
-                let current_pos_to_next_offset = offset_next_node - agent_position;
-                let current_offset_to_next_offset = offset_next_node - offset_current_node;
+                if is_jumpable_connection {
+                    let agent_position_next_frame = agent_position + agent_physics.velocity;
 
-                if current_pos_to_next_offset.length_squared()
-                    <= current_offset_to_next_offset.length_squared()
-                {
-                    println!("Test 7");
-                    path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
+                    let agent_side_of_corner_current =
+                        (agent_position.x - path[0].position.x).signum();
+
+                    let agent_side_of_corner_next_frame =
+                        (agent_position_next_frame.x - path[0].position.x).signum();
+
+                    let agent_on_other_side_next_frame =
+                        agent_side_of_corner_current != agent_side_of_corner_next_frame;
+
+                    let agent_not_moving = agent_physics.velocity.length_squared() < 0.1;
+
+                    path_following_strategy = if agent_on_other_side_next_frame || agent_not_moving
+                    {
+                        println!("Test 9");
+                        PathFollowingStrategy::AgentToNextNodeOffset
+                    } else {
+                        println!("Test 10");
+                        PathFollowingStrategy::AgentToCurrentNodeOffset
+                    };
                 } else {
-                    println!("Test 8");
-                    path_following_strategy = PathFollowingStrategy::AgentToCurrentNodeOffset;
+                    let current_pos_to_next_offset = offset_next_node - agent_position;
+                    let current_offset_to_next_offset = offset_next_node - offset_current_node;
+
+                    if current_pos_to_next_offset.length_squared()
+                        <= current_offset_to_next_offset.length_squared()
+                    {
+                        println!("Test 7");
+                        path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
+                    } else {
+                        println!("Test 8");
+                        path_following_strategy = PathFollowingStrategy::AgentToCurrentNodeOffset;
+                    }
                 }
             }
 

@@ -4,6 +4,12 @@ This is a test project I've put together to let others try interacting with an A
 
 The behavior is supposed to resemble that of the lizards from [Rain World](https://store.steampowered.com/app/312520/Rain_World/). However, I have never played Rain World, so I'm just kind of guessing. In the game this AI will control a creature that hunts down the player.
 
+## Controls
+
+- Arrow keys to move target
+- Space to enable / disable target
+- G to show gizmos / debug info
+
 ## TODO
 
 - [x] Implement [platformer pathfinding](https://www.youtube.com/watch?v=kNI2I8kzpnE&t=123s)

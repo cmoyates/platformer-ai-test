@@ -1,5 +1,6 @@
 use bevy::{
     app::{App, Plugin, Update},
+    core_pipeline::core_3d::graph::node,
     ecs::{
         component::Component,
         schedule::IntoSystemConfigs,
@@ -176,116 +177,55 @@ fn get_move_inputs(
 
             let path_following_strategy: PathFollowingStrategy;
 
-            if current_node_is_corner {
-                // If the agent is not falling
-                if !falling {
-                    // External corner
-                    if corner_is_external.unwrap() {
-                        // Jumpable connection
-                        if is_jumpable_connection {
-                            let agent_position_next_frame = agent_position + agent_physics.velocity;
-
-                            if agent_on_wall {
-                                let agent_side_of_corner_current =
-                                    (agent_position.y - path[0].position.y).signum();
-
-                                let agent_side_of_corner_next_frame =
-                                    (agent_position_next_frame.y - path[0].position.y).signum();
-
-                                let agent_on_other_side_next_frame =
-                                    agent_side_of_corner_current != agent_side_of_corner_next_frame;
-
-                                let agent_not_moving =
-                                    agent_physics.velocity.length_squared() < 0.1;
-
-                                path_following_strategy =
-                                    if agent_on_other_side_next_frame || agent_not_moving {
-                                        println!("Test 2");
-                                        PathFollowingStrategy::AgentToNextNodeOffset
-                                    } else {
-                                        println!("Test 3");
-                                        PathFollowingStrategy::AgentToCurrentNodeOffset
-                                    };
-                            } else {
-                                let agent_side_of_corner_current =
-                                    (agent_position.x - path[0].position.x).signum();
-
-                                let agent_side_of_corner_next_frame =
-                                    (agent_position_next_frame.x - path[0].position.x).signum();
-
-                                let agent_on_other_side_next_frame =
-                                    agent_side_of_corner_current != agent_side_of_corner_next_frame;
-
-                                let agent_not_moving =
-                                    agent_physics.velocity.length_squared() < 0.1;
-
-                                path_following_strategy =
-                                    if agent_on_other_side_next_frame || agent_not_moving {
-                                        println!("Test 2");
-                                        PathFollowingStrategy::AgentToNextNodeOffset
-                                    } else {
-                                        println!("Test 3");
-                                        PathFollowingStrategy::AgentToCurrentNodeOffset
-                                    };
-                            }
-                        }
-                        // Walkable connection
-                        else {
-                            println!("Test 4");
-                            path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
-                        }
-                    }
-                    // Internal corner
-                    else {
-                        // println!("Internal corner");
-                        println!("Test 5");
-                        path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
-                    }
-                }
-                // If the agent is falling
-                else {
-                    println!("Test 6");
-                    path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
-                }
-            }
-            // Not a corner
-            else {
+            // Agent not falling
+            if !falling {
+                // Agent jumping
                 if is_jumpable_connection {
-                    let agent_position_next_frame = agent_position + agent_physics.velocity;
-
-                    let agent_side_of_corner_current =
-                        (agent_position.x - path[0].position.x).signum();
-
-                    let agent_side_of_corner_next_frame =
-                        (agent_position_next_frame.x - path[0].position.x).signum();
-
-                    let agent_on_other_side_next_frame =
-                        agent_side_of_corner_current != agent_side_of_corner_next_frame;
+                    let agent_on_other_side_next_frame = agent_on_other_side_next_frame(
+                        agent_position,
+                        agent_physics.velocity,
+                        path[0].position,
+                        agent_on_wall,
+                    );
 
                     let agent_not_moving = agent_physics.velocity.length_squared() < 0.1;
 
                     path_following_strategy = if agent_on_other_side_next_frame || agent_not_moving
                     {
-                        println!("Test 9");
+                        println!("Test 1");
                         PathFollowingStrategy::AgentToNextNodeOffset
                     } else {
-                        println!("Test 10");
+                        println!("Test 2");
                         PathFollowingStrategy::AgentToCurrentNodeOffset
                     };
                 } else {
-                    let current_pos_to_next_offset = offset_next_node - agent_position;
-                    let current_offset_to_next_offset = offset_next_node - offset_current_node;
+                    // Non-jumping corner
+                    if current_node_is_corner {
+                        println!("Test 3");
+                        path_following_strategy = PathFollowingStrategy::AgentToNextNode;
+                    }
+                    // Non-jumping flat surface
+                    else {
+                        let current_pos_to_next_offset = offset_next_node - agent_position;
+                        let current_offset_to_next_offset = offset_next_node - offset_current_node;
 
-                    if current_pos_to_next_offset.length_squared()
-                        <= current_offset_to_next_offset.length_squared()
-                    {
-                        println!("Test 7");
-                        path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
-                    } else {
-                        println!("Test 8");
-                        path_following_strategy = PathFollowingStrategy::AgentToCurrentNodeOffset;
+                        if current_pos_to_next_offset.length_squared()
+                            <= current_offset_to_next_offset.length_squared()
+                        {
+                            println!("Test 4");
+                            path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
+                        } else {
+                            println!("Test 5");
+                            path_following_strategy =
+                                PathFollowingStrategy::AgentToCurrentNodeOffset;
+                        }
                     }
                 }
+            }
+            // Agent falling
+            else {
+                println!("Test 6");
+                path_following_strategy = PathFollowingStrategy::AgentToNextNodeOffset;
             }
 
             move_dir = match path_following_strategy {
@@ -386,4 +326,23 @@ fn update_physics_and_transform(physics: &mut Physics, transform: &mut Transform
     // Update position
     transform.translation.x += physics.velocity.x;
     transform.translation.y += physics.velocity.y;
+}
+
+pub fn agent_on_other_side_next_frame(
+    agent_position: Vec2,
+    agent_velocity: Vec2,
+    node_position: Vec2,
+    vertical: bool,
+) -> bool {
+    let dimension_index = if vertical { 1 } else { 0 };
+
+    let agent_position_next_frame = agent_position + agent_velocity;
+
+    let agent_side_of_corner_current =
+        (agent_position[dimension_index] - node_position[dimension_index]).signum();
+
+    let agent_side_of_corner_next_frame =
+        (agent_position_next_frame[dimension_index] - node_position[dimension_index]).signum();
+
+    agent_side_of_corner_current != agent_side_of_corner_next_frame
 }
